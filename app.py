@@ -1,16 +1,21 @@
 import os, json
 from uuid import uuid4
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy import Text
 
 app = Flask(__name__)
 database_url = os.getenv("DATABASE_URL", "")
+# Railway may provide postgres:// or postgresql://. This project installs psycopg v3,
+# so explicitly select its SQLAlchemy dialect.
 if database_url.startswith("postgres://"):
-    database_url = database_url.replace("postgres://", "postgresql://", 1)
+    database_url = database_url.replace("postgres://", "postgresql+psycopg://", 1)
+elif database_url.startswith("postgresql://"):
+    database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
 app.config["SQLALCHEMY_DATABASE_URI"] = database_url or "sqlite:///local_dev.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
 db = SQLAlchemy(app)
 
 class AppData(db.Model):
@@ -32,18 +37,20 @@ class Customer(db.Model):
 with app.app_context():
     db.create_all()
 
+# These pages are standalone HTML files with their own JavaScript/CSS.
+# Serve them as files instead of running them through Jinja templating.
 @app.get("/")
-def home(): return render_template("index.html")
+def home(): return send_from_directory("templates", "index.html")
 @app.get("/product")
-def product(): return render_template("product.html")
+def product(): return send_from_directory("templates", "product.html")
 @app.get("/credit")
-def credit(): return render_template("credit_register.html")
+def credit(): return send_from_directory("templates", "credit_register.html")
 @app.get("/quotation")
-def quotation(): return render_template("quotation.html")
+def quotation(): return send_from_directory("templates", "quotation.html")
 @app.get("/customers")
-def customers_page(): return render_template("customers.html")
+def customers_page(): return send_from_directory("templates", "customers.html")
 @app.get("/others")
-def others_page(): return render_template("others.html")
+def others_page(): return send_from_directory("templates", "others.html")
 
 @app.route("/api/data/<key>", methods=["GET","PUT","DELETE"])
 def app_data(key):
