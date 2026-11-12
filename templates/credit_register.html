@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Credit / Supply Register</title>
+  <title>Others Register — Multi Plaza</title>
 
   <!-- Excel import and export -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -288,7 +288,7 @@
       font-weight: bold;
     }
 
-    /* Larger, clearer totals in the Credit / Supply dashboard */
+    /* Larger, clearer totals in the Others dashboard */
     .card strong {
       font-size: 22px;
       line-height: 1.25;
@@ -349,7 +349,7 @@
 <body>
 
 <header>
-  <h1>Credit / Supply Register</h1>
+  <h1>Others Register</h1>
   <p>Enter and edit records directly in the table.</p>
 </header>
 
@@ -485,7 +485,7 @@
     Uses the same storage key as the previous version.
     Old "received" data remains Payment Received 1.
   */
-  const STORAGE_KEY = "excel_style_supply_register_v1";
+  const STORAGE_KEY = "excel_style_others_register_v1";
 
   const $ = id => document.getElementById(id);
   let editMode = true;
@@ -712,7 +712,7 @@
   async function saveNow() {
     clearTimeout(saveTimer);
     try {
-      const response = await fetch("/api/data/supply_register", {
+      const response = await fetch("/api/data/others_register", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(rows)
@@ -1211,7 +1211,7 @@
         row.remarks
       ]);
 
-    downloadWorkbook(data, "credit-supply-register.xlsx");
+    downloadWorkbook(data, "others-register.xlsx");
   });
 
   function normalize(value) {
@@ -1429,7 +1429,7 @@
   // Load shared PostgreSQL data after page initialization; browser data remains a fallback.
   (async function loadSharedRegister(){
     try {
-      const response = await fetch("/api/data/supply_register");
+      const response = await fetch("/api/data/others_register");
       if (!response.ok) return;
       const saved = await response.json();
       if (Array.isArray(saved) && saved.length) {

@@ -61,3 +61,8 @@ Important limitations:
 - Offline changes are stored on that same device until they sync. They are not visible on another device until the server sync succeeds.
 - Browser storage can be cleared or evicted. Export backups regularly and configure Railway PostgreSQL backups separately in Railway's database Backups tab. This application does not claim to create a separate daily cloud backup automatically.
 - If the browser is closed while offline, queued changes remain on that device and sync on the next visit when online.
+
+
+## Others Register
+
+The Others page now uses the same full register interface and features as Credit / Supply Register (dashboard totals, editable grid, payment 1/2/3 with remarks, Excel/CSV import/export, row controls, and auto-save). It uses a separate PostgreSQL key `others_register` and separate browser storage key, so its records remain independent from Credit / Supply.
