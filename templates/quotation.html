@@ -1135,7 +1135,20 @@ html, body { margin:0; }
   window.addEventListener('load', queueResizeAll, { once: true });
   setTimeout(queueResizeAll, 250);
 })();
-</script></body></html>
+</script><div id="autoSaveStatus" style="position:fixed;right:12px;bottom:10px;background:#173f65;color:white;padding:6px 10px;border-radius:8px;font:12px Arial;z-index:9999">Auto-save ready</div>
+<script>
+(function(){
+ const KEY='mp_quotation_autosave_v1';let timer=null,restoring=false;
+ function snapshot(){const controls=[...document.querySelectorAll('input,textarea,select')].filter(e=>!['button','submit','reset','file'].includes((e.type||'').toLowerCase())).map((e,i)=>({key:e.id?'#'+e.id:(e.name?'[name="'+CSS.escape(e.name)+'"]':'@'+i),value:e.value,checked:e.type==='checkbox'||e.type==='radio'?e.checked:undefined}));const edits=[...document.querySelectorAll('[contenteditable="true"]')].map((e,i)=>({key:e.id?'#'+e.id:'@'+i,html:e.innerHTML}));return {controls,edits};}
+ function apply(data){if(!data)return;restoring=true;try{(data.controls||[]).forEach((x,i)=>{let e=x.key[0]==='#'?document.querySelector(x.key):x.key[0]==='['?document.querySelector(x.key):document.querySelectorAll('input,textarea,select').filter?null:null;if(!e&&x.key[0]==='@')e=[...document.querySelectorAll('input,textarea,select')].filter(n=>!['button','submit','reset','file'].includes((n.type||'').toLowerCase()))[Number(x.key.slice(1))];if(e){e.value=x.value??'';if(x.checked!==undefined)e.checked=x.checked;}});(data.edits||[]).forEach((x)=>{let e=x.key[0]==='#'?document.querySelector(x.key):[...document.querySelectorAll('[contenteditable="true"]')][Number(x.key.slice(1))];if(e)e.innerHTML=x.html||'';});}finally{restoring=false}}
+ async function save(){if(restoring)return;const data=snapshot();try{localStorage.setItem(KEY,JSON.stringify(data));}catch(e){}try{let r=await fetch('/api/data/quotation_data',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});let status=document.getElementById('autoSaveStatus');if(status)status.textContent=r.ok?'Auto-saved':'Saved on this device';}catch(e){let status=document.getElementById('autoSaveStatus');if(status)status.textContent='Saved on this device';}}
+ function schedule(){clearTimeout(timer);let status=document.getElementById('autoSaveStatus');if(status)status.textContent='Saving…';timer=setTimeout(save,700)}
+ document.addEventListener('input',schedule);document.addEventListener('change',schedule);document.addEventListener('click',e=>{if(e.target.closest('button'))schedule()});
+ async function init(){try{let r=await fetch('/api/data/quotation_data');if(r.ok){let d=await r.json();if(d&&d.controls)apply(d);else{let local=JSON.parse(localStorage.getItem(KEY)||'null');apply(local)}}else apply(JSON.parse(localStorage.getItem(KEY)||'null'))}catch(e){try{apply(JSON.parse(localStorage.getItem(KEY)||'null'))}catch(_){}}}
+ window.addEventListener('beforeunload',()=>{try{localStorage.setItem(KEY,JSON.stringify(snapshot()))}catch(e){}});init();
+})();
+</script>
+</body></html>
 <style id="editable-fields-and-number-controls-fix">
 /* Editable opening text and clean number fields without browser spinner arrows. */
 .editable-intro{outline:none;min-height:2.8em;padding:1px 2px;border:1px solid transparent;border-radius:2px;}

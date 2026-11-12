@@ -201,8 +201,8 @@ table td:nth-child(2) { color:#123f68; white-space:nowrap; }
 <script>
 let editing=false;
 function toggleEdit(){editing=!editing;document.body.classList.toggle('editing',editing);document.querySelectorAll('#content h2,#content p,#content td,#content th,header h1,header p,header .sub').forEach(e=>e.contentEditable=editing?'true':'false');document.getElementById('editBtn').textContent='✎ Edit: '+(editing?'ON':'OFF');document.getElementById('status').textContent=editing?'Editing enabled — click product text, heading or price to change it.':'Editing disabled.';}
-function addRow(btn){let table=btn.previousElementSibling?.querySelector('table');if(!table)return;let cols=table.querySelector('thead tr')?.children.length||3;let tr=table.querySelector('tbody').insertRow();for(let i=0;i<cols;i++){let td=tr.insertCell();td.contentEditable=editing?'true':'false';td.textContent=i===0?'New product':'';}let act=tr.insertCell();act.className='row-actions';act.innerHTML='<button class="del-row" onclick="deleteRow(this)">×</button>'; }
-function deleteRow(btn){if(confirm('Delete this product row?'))btn.closest('tr').remove();}
+function addRow(btn){let table=btn.previousElementSibling?.querySelector('table');if(!table)return;let cols=table.querySelector('thead tr')?.children.length||3;let tr=table.querySelector('tbody').insertRow();for(let i=0;i<cols;i++){let td=tr.insertCell();td.contentEditable=editing?'true':'false';td.textContent=i===0?'New product':'';}let act=tr.insertCell();act.className='row-actions';act.innerHTML='<button class="del-row" onclick="deleteRow(this)">×</button>';scheduleProductSave();}
+function deleteRow(btn){if(confirm('Delete this product row?')){btn.closest('tr').remove();scheduleProductSave();}}
 async function saveLocal(){
  const payload={content:document.getElementById('content').innerHTML,header:document.querySelector('header').innerHTML};
  try{
@@ -228,6 +228,9 @@ async function loadLocal(){
  if(h)document.querySelector('header').innerHTML=h;
 }
 function resetEdits(){if(confirm('Reset saved changes and reload the original list?')){localStorage.removeItem('multiPlazaPriceList');localStorage.removeItem('multiPlazaHeader');fetch('/api/data/product_list',{method:'DELETE'}).finally(()=>location.reload());}}
+let productSaveTimer;function scheduleProductSave(){clearTimeout(productSaveTimer);document.getElementById('status').textContent='Saving changes…';productSaveTimer=setTimeout(saveLocal,650);}
+document.addEventListener('input',e=>{if(e.target.closest('#content')||e.target.closest('header'))scheduleProductSave();});
+document.addEventListener('blur',e=>{if(e.target.closest('#content')||e.target.closest('header'))scheduleProductSave();},true);
 function exportHTML(){let clone=document.documentElement.cloneNode(true);clone.querySelector('.toolbar')?.remove();clone.querySelectorAll('[contenteditable]').forEach(e=>e.removeAttribute('contenteditable'));clone.querySelectorAll('.row-actions,.add-row').forEach(e=>e.remove());let blob=new Blob(['<!doctype html>\n'+clone.outerHTML],{type:'text/html;charset=utf-8'});let a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Multi-Plaza-Product-Price-List.html';a.click();URL.revokeObjectURL(a.href);}
 function filterRows(){let q=document.getElementById('search').value.toLowerCase();document.querySelectorAll('tbody tr').forEach(r=>r.classList.toggle('hidden',!r.innerText.toLowerCase().includes(q)));document.querySelectorAll('h2').forEach(h=>{let next=h.nextElementSibling;let has=next?.querySelectorAll?Array.from(next.querySelectorAll('tbody tr')).some(r=>!r.classList.contains('hidden')):true;h.classList.toggle('hidden',!!q&&!has);});}
 loadLocal();
