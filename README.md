@@ -43,13 +43,8 @@
 Auto-save to the shared database requires the Railway PostgreSQL service to be connected and the app deployed. Local drafts are browser/device-specific and are not a substitute for database backup.
 
 
-## Install Multi Plaza on Desktop (PWA)
-After deploying the site over HTTPS, open the home page in Google Chrome or Microsoft Edge.
-- Chrome: click the three-dot menu (top-right) → Cast, save and share (or Save and share) → Install page as app / Install Multi Plaza. In some versions this appears as an install icon at the right of the address bar.
-- Edge: three-dot menu → Apps → Install this site as an app.
-If Chrome only shows “Create shortcut”, select it and tick “Open as window”.
+## Payment remarks (new)
+Credit / Supply Register now has a separate multiline remark field directly below each of Payment Received 1, 2, and 3. Use it to record when the payment was received, payment mode (cash/UPI/bank), transaction/reference details, or any note. These fields are saved with the corresponding row through the existing auto-save API and PostgreSQL record. Existing payment amounts remain unchanged.
 
-The app includes a web app manifest, 192px/512px icons, and a service worker for app-shell caching. Online connection is still required for PostgreSQL data saving; offline edits are not queued for database sync.
-
-## Others Register
-The Others section is now a separate full copy of the Credit / Supply Register layout and functions. It uses its own PostgreSQL key (`others_register`) and browser storage key, so its records remain separate from Credit / Supply records.
+## Desktop installation (PWA)
+The dashboard includes a web app manifest and service worker. Open the HTTPS Railway site in Chrome and use the browser menu to install the page as an app / create shortcut.

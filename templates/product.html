@@ -87,6 +87,7 @@ table td:nth-child(2) { color:#123f68; white-space:nowrap; }
 .company-picker-list button:hover{background:#edf4fb}
 @media(max-width:650px){.company-picker-trigger{width:38px;height:38px}.company-picker-list{position:fixed;top:auto;left:10px;right:10px;bottom:12px;max-width:none;max-height:65vh}}
 @media print{.company-picker{display:none!important}}
+.menu-target-highlight{outline:3px solid #e4a52b!important;outline-offset:3px;transition:outline .2s}
 </style>
 </head>
 <body class="editing">
@@ -98,6 +99,7 @@ table td:nth-child(2) { color:#123f68; white-space:nowrap; }
 </header>
 <div class="toolbar">
 <button class="primary" id="editBtn" onclick="toggleEdit()" type="button">✎ Edit: OFF</button>
+<div class="company-picker" id="companyPicker"><button class="company-picker-trigger" id="companyPickerBtn" type="button" aria-label="Open company and brand list" aria-expanded="false" title="Company / Brand List">⋮</button><div class="company-picker-list" id="companyPickerList" role="menu" aria-label="Company and brand sections"></div></div>
 <button onclick="saveLocal()" type="button">Save Changes</button>
 <button onclick="exportHTML()" type="button">Export HTML</button>
 <input id="search" oninput="filterRows()" placeholder="Search product / model / price..." type="search"/>
@@ -233,7 +235,30 @@ document.addEventListener('input',e=>{if(e.target.closest('#content')||e.target.
 document.addEventListener('blur',e=>{if(e.target.closest('#content')||e.target.closest('header'))scheduleProductSave();},true);
 function exportHTML(){let clone=document.documentElement.cloneNode(true);clone.querySelector('.toolbar')?.remove();clone.querySelectorAll('[contenteditable]').forEach(e=>e.removeAttribute('contenteditable'));clone.querySelectorAll('.row-actions,.add-row').forEach(e=>e.remove());let blob=new Blob(['<!doctype html>\n'+clone.outerHTML],{type:'text/html;charset=utf-8'});let a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Multi-Plaza-Product-Price-List.html';a.click();URL.revokeObjectURL(a.href);}
 function filterRows(){let q=document.getElementById('search').value.toLowerCase();document.querySelectorAll('tbody tr').forEach(r=>r.classList.toggle('hidden',!r.innerText.toLowerCase().includes(q)));document.querySelectorAll('h2').forEach(h=>{let next=h.nextElementSibling;let has=next?.querySelectorAll?Array.from(next.querySelectorAll('tbody tr')).some(r=>!r.classList.contains('hidden')):true;h.classList.toggle('hidden',!!q&&!has);});}
-loadLocal();
-buildCompanyNav();
+async function buildCompanyNav(){
+ const picker=document.getElementById('companyPicker');
+ const trigger=document.getElementById('companyPickerBtn');
+ const list=document.getElementById('companyPickerList');
+ if(!picker||!trigger||!list)return;
+ const headings=Array.from(document.querySelectorAll('#content h2'));
+ list.innerHTML='';
+ headings.forEach((heading,index)=>{
+   if(!heading.id) heading.id='product-section-'+(index+1);
+   const item=document.createElement('button');
+   item.type='button'; item.setAttribute('role','menuitem');
+   item.textContent=heading.textContent.trim();
+   item.addEventListener('click',()=>{
+     list.classList.remove('open'); trigger.setAttribute('aria-expanded','false');
+     heading.scrollIntoView({behavior:'smooth',block:'start'});
+     heading.classList.add('menu-target-highlight');
+     setTimeout(()=>heading.classList.remove('menu-target-highlight'),1400);
+   });
+   list.appendChild(item);
+ });
+ trigger.onclick=()=>{const open=list.classList.toggle('open');trigger.setAttribute('aria-expanded',String(open));};
+ document.addEventListener('click',e=>{if(!picker.contains(e.target)){list.classList.remove('open');trigger.setAttribute('aria-expanded','false');}});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'){list.classList.remove('open');trigger.setAttribute('aria-expanded','false');}});
+}
+loadLocal().then(buildCompanyNav);
 </script>
 </body></html>

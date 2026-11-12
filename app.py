@@ -87,7 +87,6 @@ def others_page():
     return serve_page("others.html")
 
 
-
 @app.get("/manifest.webmanifest")
 def pwa_manifest():
     return send_from_directory(str(BASE_DIR / "static"), "manifest.webmanifest", mimetype="application/manifest+json")
@@ -104,9 +103,9 @@ def service_worker():
 ALLOWED_DATA_KEYS = {
     "product_list",
     "supply_register",
-    "others_register",
     "quotation_data",
     "settings",
+    "others_register",
 }
 
 
