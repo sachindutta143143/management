@@ -48,3 +48,16 @@ Credit / Supply Register now has a separate multiline remark field directly belo
 
 ## Desktop installation (PWA)
 The dashboard includes a web app manifest and service worker. Open the HTTPS Railway site in Chrome and use the browser menu to install the page as an app / create shortcut.
+
+## Offline-first backup and sync (added)
+- `static/offline-sync.js` caches successful API GET responses in IndexedDB.
+- Data API changes and customer create/update/delete operations are queued in the browser when the network/server is unavailable, then retried when the connection returns.
+- Offline customer creation uses a client-generated ID so a retry does not create a duplicate.
+- A daily local browser snapshot is retained in localStorage (subject to browser storage limits and the user not clearing site data).
+- The dashboard has a **Backup** button. When online it downloads a JSON export from `/api/backup/export` (server-side app data + customers); when offline it downloads a local browser backup.
+- A small status indicator shows online/synced or pending offline changes.
+
+Important limitations:
+- Offline changes are stored on that same device until they sync. They are not visible on another device until the server sync succeeds.
+- Browser storage can be cleared or evicted. Export backups regularly and configure Railway PostgreSQL backups separately in Railway's database Backups tab. This application does not claim to create a separate daily cloud backup automatically.
+- If the browser is closed while offline, queued changes remain on that device and sync on the next visit when online.

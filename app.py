@@ -160,7 +160,11 @@ def customer_create():
         return jsonify(error="Customer name is required"), 400
 
     allowed_fields = ["mobile", "email", "gstin", "state", "city", "pincode", "address"]
-    customer = Customer(name=name, **{field: data.get(field) for field in allowed_fields})
+    customer_id = str(data.get("id") or uuid4())
+    existing = db.session.get(Customer, customer_id)
+    if existing is not None:
+        return jsonify(customer_json(existing)), 200
+    customer = Customer(id=customer_id, name=name, **{field: data.get(field) for field in allowed_fields})
     db.session.add(customer)
     db.session.commit()
     return jsonify(customer_json(customer)), 201
@@ -193,6 +197,13 @@ def customer_delete(customer_id):
     db.session.commit()
     return jsonify(ok=True)
 
+
+
+@app.get("/api/backup/export")
+def backup_export():
+    """Export all server-side app data and customers as a JSON backup."""
+    payload = {row.data_key: row.payload for row in AppData.query.all()}
+    return jsonify({"created_at": __import__("datetime").datetime.utcnow().isoformat() + "Z", "app_data": payload, "customers": [customer_json(c) for c in Customer.query.order_by(Customer.name).all()]})
 
 @app.get("/health")
 def health():
