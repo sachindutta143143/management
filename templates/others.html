@@ -1,0 +1,21 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Others — Multi Plaza</title><style>
+*{box-sizing:border-box}body{margin:0;background:#eef3f8;color:#172033;font:14px Arial}header{background:#173f65;color:white;padding:17px}main{padding:14px;max-width:1200px;margin:auto}
+.panel{background:#fff;border:1px solid #dbe3ec;border-radius:12px;padding:14px;margin-bottom:14px}.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button{border:0;border-radius:8px;background:#214e79;color:#fff;padding:9px 13px;font-weight:bold;cursor:pointer}.light{background:#eaf0f7;color:#173f65}
+.wrap{overflow:auto}table{width:100%;min-width:850px;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #d8e0e9;padding:5px;vertical-align:top}th{background:#173f65;color:white;position:sticky;top:0}
+input,textarea{width:100%;border:0;outline:0;background:transparent;padding:6px;font:13px Arial;min-width:0}textarea{min-height:48px;height:48px;resize:vertical;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.35}
+td:focus-within{background:#eff6ff;outline:2px solid #2563eb;outline-offset:-2px}.muted{color:#64748b;font-size:12px}
+@media(max-width:600px){main{padding:8px}.panel{padding:9px}header{padding:12px}textarea{min-height:54px;height:54px;font-size:14px}}
+</style></head><body><header><h2 style="margin:0">OTHERS</h2><p style="margin:6px 0 0">Additional records / miscellaneous entries</p></header>
+<main><section class="panel"><div class="tools"><button id="add">+ Add Row</button><button class="light" id="save">Save Changes</button><span class="muted" id="status">Ready</span></div></section>
+<section class="panel"><div class="wrap"><table><thead><tr><th style="width:14%">Date</th><th style="width:22%">Customer / Name</th><th style="width:30%">Particulars</th><th style="width:14%">Amount</th><th style="width:20%">Remarks</th><th style="width:55px">Del.</th></tr></thead><tbody id="rows"></tbody></table></div></section></main>
+<script>
+let data=[];const fields=['date','customer','particulars','amount','remarks'];
+function row(v={}){return {...Object.fromEntries(fields.map(k=>[k,v[k]||'']))}}
+function render(){let b=document.getElementById('rows');b.innerHTML='';data.forEach((r,i)=>{let tr=document.createElement('tr');fields.forEach(k=>{let td=document.createElement('td'),el=document.createElement(k==='date'||k==='amount'?'input':'textarea');if(k==='date')el.type='date';if(k==='amount')el.type='number';el.value=r[k];el.placeholder=k==='customer'?'Name / second line...':k==='particulars'?'Enter details...':'';el.oninput=()=>{data[i][k]=el.value;saveSoon()};td.append(el);tr.append(td)});let td=document.createElement('td'),btn=document.createElement('button');btn.textContent='×';btn.className='light';btn.onclick=()=>{data.splice(i,1);render();save()};td.append(btn);tr.append(td);b.append(tr)})}
+let timer;function saveSoon(){clearTimeout(timer);timer=setTimeout(save,700)}
+async function save(){try{let r=await fetch('/api/data/others_register',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});if(!r.ok)throw Error();document.getElementById('status').textContent='Saved to database'}catch(e){document.getElementById('status').textContent='Save failed — check connection'}}
+async function load(){try{let r=await fetch('/api/data/others_register');if(r.ok){let d=await r.json();if(Array.isArray(d))data=d.map(row)}}catch(e){}if(!data.length)data=[row()];render()}
+document.getElementById('add').onclick=()=>{data.push(row());render();save()};document.getElementById('save').onclick=save;load();
+</script></body></html>
