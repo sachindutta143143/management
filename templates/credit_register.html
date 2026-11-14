@@ -647,8 +647,8 @@
 
     if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
       [year, month, day] = text.split("-").map(Number);
-    } else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(text)) {
-      [day, month, year] = text.split("/").map(Number);
+    } else if (/^\d{1,2}[\/-]\d{1,2}[\/-]\d{4}$/.test(text)) {
+      [day, month, year] = text.split(/[\/-]/).map(Number);
     } else {
       return null;
     }
@@ -668,6 +668,13 @@
       String(month).padStart(2, "0"),
       String(day).padStart(2, "0")
     ].join("-");
+  }
+
+  function displayDate(value) {
+    const iso = parseDate(value);
+    if (!iso) return String(value ?? "");
+    const [year, month, day] = iso.split("-");
+    return `${day}-${month}-${year}`;
   }
 
   function today() {
@@ -776,7 +783,7 @@
     if (!["item","customer"].includes(column.key)) input.type = "text";
     if (column.key === "item") { input.rows = 2; input.placeholder = "Enter item details..."; }
     if (column.key === "customer") { input.rows = 2; input.placeholder = "Customer name / second line..."; }
-    input.value = row[column.key] ?? "";
+    input.value = dateKeys.includes(column.key) ? displayDate(row[column.key]) : (row[column.key] ?? "");
     input.dataset.row = rowIndex;
     input.dataset.col = columnIndex;
     input.dataset.key = column.key;
@@ -786,7 +793,7 @@
       if (!validNumber(input.value)) input.classList.add("invalid");
     }
     if (dateKeys.includes(column.key)) {
-      input.placeholder = "YYYY-MM-DD";
+      input.placeholder = "DD-MM-YYYY";
       if (input.value && !parseDate(input.value)) input.classList.add("invalid");
     }
     return input;
@@ -987,10 +994,10 @@
         input.classList.add("invalid");
 
         $("message").textContent =
-          `Row ${rowIndex + 1}: use YYYY-MM-DD or DD/MM/YYYY for dates.`;
+          `Row ${rowIndex + 1}: use DD-MM-YYYY for dates.`;
       } else {
         input.classList.remove("invalid");
-        input.value = date;
+        input.value = displayDate(date);
         rows[rowIndex][key] = date;
 
         updateDashboard();
