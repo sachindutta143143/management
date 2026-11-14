@@ -485,7 +485,8 @@
     Uses the same storage key as the previous version.
     Old "received" data remains Payment Received 1.
   */
-  const STORAGE_KEY = "excel_style_others_register_v1";
+  const STORAGE_KEY = "excel_style_credit_register_v1";
+  const LEGACY_STORAGE_KEY = "excel_style_others_register_v1";
 
   const $ = id => document.getElementById(id);
   let editMode = true;
@@ -568,7 +569,7 @@
 
   try {
     const saved = JSON.parse(
-      localStorage.getItem(STORAGE_KEY) || "[]"
+      localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY) || "[]"
     );
 
     if (Array.isArray(saved)) {
@@ -712,7 +713,7 @@
   async function saveNow() {
     clearTimeout(saveTimer);
     try {
-      const response = await fetch("/api/data/others_register", {
+      const response = await fetch("/api/data/credit_register", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(rows)
@@ -1429,7 +1430,7 @@
   // Load shared PostgreSQL data after page initialization; browser data remains a fallback.
   (async function loadSharedRegister(){
     try {
-      const response = await fetch("/api/data/others_register");
+      const response = await fetch("/api/data/credit_register");
       if (!response.ok) return;
       const saved = await response.json();
       if (Array.isArray(saved) && saved.length) {

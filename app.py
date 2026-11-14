@@ -103,6 +103,7 @@ def service_worker():
 ALLOWED_DATA_KEYS = {
     "product_list",
     "supply_register",
+    "credit_register",
     "quotation_data",
     "settings",
     "others_register",
