@@ -4,6 +4,7 @@
 - `templates/product.html` — original product & price list, split into its own file; saves to PostgreSQL API.
 - `templates/credit_register.html` — original credit/supply register, split into its own file; saves to PostgreSQL API.
 - `templates/quotation.html` — original quotation, separate file.
+- `templates/installments.html` — third section, installment register with PostgreSQL persistence.
 - `templates/others.html` — separate Others register with flexible multiline fields, PostgreSQL-backed.\n- `templates/customers.html` — new flexible customer manager (add/edit/delete/search).
 - `templates/index.html` — dashboard navigation; add future modules here.
 - `app.py` — Flask routes + PostgreSQL JSON data API + customer CRUD.
@@ -29,6 +30,7 @@
 ## Important
 - Product list and supply register have PostgreSQL API persistence with browser-local fallback if the server/database is unavailable.
 - Customer CRUD is PostgreSQL-backed.\n- Customer field in Credit/Supply Register is multiline and vertically resizable, like Item.\n- Others section has its own database key (`others_register`).
+- Installment Register has its own PostgreSQL key (`installment_register`); local browser cache is retained as offline fallback.
 - Quotation remains a separate original HTML page in this first migration; quotation-history saving and automatic customer autofill are the next integration step.
 - Back up the database before production use. Add authentication/login and role permissions before exposing business records publicly.
 - Do not commit `.env` or database credentials to GitHub.

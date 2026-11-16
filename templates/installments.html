@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Multi Plaza - Installment Register</title>
+<style>
+:root{--blue:#245b98;--navy:#174879;--line:#cbd5df;--bg:#f3f5f7;--green:#16803b;--red:#c62828}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#17212b;font:13px Arial,sans-serif}
+header{background:#14518a;color:#fff;padding:13px 16px}header h2{margin:0;font-size:20px}header p{margin:5px 0 0;color:#e3edf7;font-size:12px}
+main{max-width:1550px;margin:auto;padding:10px}
+.toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:9px}
+button{border:1px solid #bdc8d3;border-radius:4px;background:#edf2f6;color:#173b5b;padding:7px 10px;font-weight:bold;cursor:pointer}
+button.primary{background:#1769b2;color:white;border-color:#1769b2}button.green{background:#e7f6eb;color:#08752d;border-color:#a8d7b5}button.red{background:#fdecec;color:#b42318;border-color:#e7b0b0}button.small{padding:5px 8px;font-size:12px}
+button:disabled{opacity:.5;cursor:not-allowed}
+input,select{width:100%;min-width:0;padding:7px;border:1px solid #cbd4dd;border-radius:3px;font:13px Arial;background:#fff;color:#17212b}
+#search{width:240px}#saveState{font-size:11px;color:#637181;margin-left:auto}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(140px,1fr));gap:7px;margin-bottom:9px}
+.stat{background:#fff;border:1px solid #d6dde5;padding:9px 11px}.stat small{display:block;color:#687687;font-size:11px;margin-bottom:5px}.stat strong{font-size:19px;color:#173f67}.stat .due{color:var(--red)}
+.reminder{background:#fff8e8;border:1px solid #ead59e;padding:9px 11px;margin-bottom:9px;border-radius:3px}
+.reminder-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}.reminder h3{margin:0;font-size:14px;color:#72510a}
+.reminder-items{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}.reminder-item{background:#fff;border:1px solid #e8d8ad;padding:6px 8px;border-radius:3px;font-size:12px}
+.overdue{color:#c62828;font-weight:bold}.soon{color:#9a6700;font-weight:bold}.paid{color:#08752d;font-weight:bold}.muted{color:#687687;font-size:11px}
+.tablebox{overflow:auto;background:#fff;border:1px solid var(--line)}
+table{width:100%;min-width:950px;border-collapse:collapse}
+th,td{border:1px solid var(--line);padding:7px 6px;text-align:left;vertical-align:middle}
+th{background:var(--blue);color:#fff;font-size:11px;white-space:nowrap}
+tbody tr:nth-child(even){background:#f8fafc}
+.money{text-align:right;white-space:nowrap;font-weight:bold}.balance{color:var(--red)}.zero{color:var(--green)}
+.actions{white-space:nowrap}.actions button{margin:1px}
+.detail-row td{background:#f0f5fa;padding:9px 12px}
+.detail-table{width:100%;min-width:640px;max-width:950px;border-collapse:collapse;margin-top:6px;background:#fff}
+.detail-table th{background:#dce8f4;color:#173b5b}.detail-table th,.detail-table td{padding:6px;border:1px solid #d1dbe5;font-size:11px}
+tfoot td{background:#e8eff6;font-weight:bold}
+.note{font-size:11px;color:#657384;margin-top:7px}
+.modal{display:none;position:fixed;inset:0;background:#091a2c99;z-index:50;align-items:center;justify-content:center;padding:12px}
+.modal.show{display:flex}.dialog{width:min(690px,100%);max-height:92vh;overflow:auto;background:white;border-radius:7px;box-shadow:0 12px 35px #0004}
+.dialog-head{background:#174879;color:#fff;padding:11px 14px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0}
+.dialog-head h3{font-size:16px;margin:0}.close{background:transparent;color:#fff;border-color:#ffffff66;padding:4px 9px}
+.dialog-body{padding:13px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.field label{display:block;font-size:11px;font-weight:bold;color:#526273;margin-bottom:4px}.field.full{grid-column:1/-1}
+.schedule-title{font-weight:bold;margin:12px 0 5px}.schedule-grid{display:grid;grid-template-columns:42px minmax(150px,1fr) minmax(120px,.8fr) 78px;gap:5px;align-items:center}
+.schedule-grid .head{font-size:11px;font-weight:bold;color:#fff;background:#4775a3;padding:6px}
+.schedule-grid .n{font-weight:bold;text-align:center}.schedule-grid input{font-size:12px;padding:6px}.schedule-grid button{white-space:nowrap}.schedule-grid .head:last-child{text-align:center}
+.dialog-foot{display:flex;justify-content:flex-end;gap:7px;padding:10px 13px;border-top:1px solid #e2e7ed;background:#fff;position:sticky;bottom:0}
+@media(max-width:700px){main{padding:6px}header{padding:11px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}#search{width:100%}#saveState{width:100%;margin:0}.grid{grid-template-columns:1fr}.field.full{grid-column:auto}.schedule-grid{grid-template-columns:28px minmax(110px,1fr) minmax(90px,.8fr) 68px;gap:4px}.schedule-grid .head{font-size:10px;padding:5px}.schedule-grid input{padding:5px;font-size:11px}.schedule-grid button{padding:5px 4px;font-size:10px}}
+@media print{header{background:#fff;color:#000;border-bottom:2px solid #000}header p{color:#333}.toolbar,.reminder,.note,.actions{display:none!important}.stats{display:none}main{padding:0}.tablebox{overflow:visible}table{min-width:0;font-size:9px}th{background:#eee;color:#000}}
+</style>
+</head>
+<body>
+<header><h2>M/S. MULTI PLAZA — INSTALLMENT REGISTER</h2><p>Customer machine sales • Flexible installment dates • Payment tracking • Due reminders</p></header>
+<main>
+<div class="toolbar">
+<button class="primary" id="addCustomer">+ Add Customer</button>
+<button id="reminderPermission">Enable My Reminder</button>
+<button id="export">Download Excel / CSV</button>
+<button onclick="window.print()">Print</button>
+<input id="search" placeholder="Search customer / mobile / machine">
+<span id="saveState">Auto-save ON</span>
+</div>
+
+<section class="stats">
+<div class="stat"><small>Total Machine Amount</small><strong id="sumTotal">₹0.00</strong></div>
+<div class="stat"><small>Total Received</small><strong id="sumPaid">₹0.00</strong></div>
+<div class="stat"><small>Balance Due</small><strong class="due" id="sumBalance">₹0.00</strong></div>
+<div class="stat"><small>Customers with Due</small><strong id="sumPending">0</strong></div>
+</section>
+
+<section class="reminder">
+<div class="reminder-head"><h3>My Payment Reminders — Overdue & Next 7 Days</h3><span class="muted" id="reminderCount">0 reminders</span></div>
+<div class="reminder-items" id="reminderItems"><span class="muted">No upcoming dues.</span></div>
+<div class="muted" style="margin-top:6px">Browser notification needs permission and this page open. The reminder list remains visible in this register.</div>
+</section>
+
+<div class="tablebox"><table>
+<thead><tr>
+<th style="width:38px">Sl.</th><th>Customer Name</th><th>Mobile / WhatsApp</th><th>Machine / Item</th>
+<th style="width:120px">Total (₹)</th><th style="width:115px">Received (₹)</th><th style="width:120px">Balance (₹)</th><th style="width:135px">Next Due</th><th class="actions">Action</th>
+</tr></thead>
+<tbody id="customers"></tbody>
+<tfoot><tr><td colspan="4">TOTAL</td><td class="money" id="footTotal">₹0.00</td><td class="money" id="footPaid">₹0.00</td><td class="money" id="footBalance">₹0.00</td><td colspan="2"></td></tr></tfoot>
+</table></div>
+<p class="note">Enter the machine total once. Choose the number of installments, then adjust each due date and amount. Record a payment whenever the customer pays. Payment amounts and dates are flexible.</p>
+</main>
+
+<!-- Small in-page customer form; no browser prompt() dialogs -->
+<div class="modal" id="customerModal"><div class="dialog">
+<div class="dialog-head"><h3 id="customerHeading">Add Customer / Machine</h3><button class="close" data-close="customerModal">✕</button></div>
+<div class="dialog-body">
+<div class="grid">
+<div class="field"><label>Customer Name *</label><input id="fName" placeholder="Customer name"></div>
+<div class="field"><label>Mobile / WhatsApp</label><input id="fMobile" placeholder="Mobile number"></div>
+<div class="field"><label>Machine / Item</label><input id="fItem" placeholder="e.g. Konica Minolta"></div>
+<div class="field"><label>Total Machine Amount (₹) *</label><input id="fTotal" type="number" min="0" placeholder="60000"></div>
+<div class="field"><label>Advance Received (₹)</label><input id="fAdvance" type="number" min="0" placeholder="e.g. 20000"></div>
+<div class="field"><label>Advance Payment Date</label><input id="fAdvanceDate" type="date"></div>
+<div class="field"><label>Installments for remaining balance</label><select id="fCount"><option value="1">1 installment</option><option value="2">2 installments</option><option value="3">3 installments</option><option value="4" selected>4 installments</option><option value="5">5 installments</option><option value="6">6 installments</option><option value="7">7 installments</option><option value="8">8 installments</option><option value="9">9 installments</option><option value="10">10 installments</option><option value="11">11 installments</option><option value="12">12 installments</option></select></div>
+<div class="field"><label>First Due Date</label><input id="fFirstDate" type="date"></div>
+</div>
+<div class="schedule-title">Remaining balance installment plan — change every amount and date yourself</div>
+<div class="toolbar" style="margin:5px 0 7px">
+<button type="button" class="green" id="addInstallment">+ Add Installment</button>
+<button type="button" id="divideEqually">Divide Remaining Equally</button>
+<span class="muted" id="planTotal">Scheduled: ₹0.00</span>
+</div>
+<div class="schedule-grid" id="scheduleGrid"></div>
+<div class="muted" style="margin-top:6px">Add as many installments as required. Edit each due date and amount individually. Select “Divide Remaining Equally” only when equal payments are preferred.</div>
+</div>
+<div class="dialog-foot"><button data-close="customerModal">Cancel</button><button class="primary" id="saveCustomer">Save Customer</button></div>
+</div></div>
+
+<div class="modal" id="paymentModal"><div class="dialog" style="max-width:460px">
+<div class="dialog-head"><h3 id="paymentHeading">Add Payment Received</h3><button class="close" data-close="paymentModal">✕</button></div>
+<div class="dialog-body">
+<div class="muted" id="paymentCustomer" style="margin-bottom:9px"></div>
+<div class="grid">
+<div class="field"><label>Payment Date *</label><input id="payDate" type="date"></div>
+<div class="field"><label>Amount Received (₹) *</label><input id="payAmount" type="number" min="0" placeholder="5000"></div>
+<div class="field full"><button type="button" id="payFullBalance" class="green">Receive Full Remaining Balance</button></div>
+<div class="field full"><label>Remarks (optional)</label><input id="payRemark" placeholder="Cash / UPI / Bank"></div>
+</div>
+</div>
+<div class="dialog-foot"><button data-close="paymentModal">Cancel</button><button class="primary" id="savePayment">Save Payment</button></div>
+</div></div>
+
+<script>
+(()=>{
+'use strict';
+const KEY='multi_plaza_installment_register_v3';
+const $=id=>document.getElementById(id);
+let records=[],editId=null,paymentId=null,paymentEditIndex=null,draft=[];
+const num=v=>Math.max(0,Number(v)||0);
+const money=v=>'₹'+num(v).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+const today=()=>{let d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const dateLabel=s=>{if(!s)return '—';let a=s.split('-');return a.length===3?`${a[2]}-${a[1]}-${a[0]}`:s};
+const addMonth=(iso,n)=>{let d=new Date(iso+'T12:00:00'),day=d.getDate();d.setDate(1);d.setMonth(d.getMonth()+n);d.setDate(Math.min(day,new Date(d.getFullYear(),d.getMonth()+1,0).getDate()));return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const received=c=>(c.payments||[]).reduce((s,p)=>s+num(p.amount),0);
+const advanceReceived=c=>(c.payments||[]).filter(p=>p.kind==='advance').reduce((s,p)=>s+num(p.amount),0);
+const regularReceived=c=>(c.payments||[]).filter(p=>p.kind!=='advance').reduce((s,p)=>s+num(p.amount),0);
+const balance=c=>Math.max(0,num(c.total)-received(c));
+let saveTimer=null;
+function persist(){
+  try{localStorage.setItem(KEY,JSON.stringify(records));}catch(e){}
+  $('saveState').textContent='Saving…';
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(async()=>{
+    try{
+      const r=await fetch('/api/data/installment_register',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(records)});
+      if(!r.ok)throw new Error('Database save failed');
+      $('saveState').textContent='Saved to database';
+    }catch(e){$('saveState').textContent='Offline — local backup saved';}
+  },350);
+}
+function stats(){let t=0,p=0,b=0,pend=0;records.forEach(c=>{t+=num(c.total);p+=received(c);b+=balance(c);if(balance(c)>0)pend++});$('sumTotal').textContent=$('footTotal').textContent=money(t);$('sumPaid').textContent=$('footPaid').textContent=money(p);$('sumBalance').textContent=$('footBalance').textContent=money(b);$('sumPending').textContent=pend}
+function nextUnpaid(c){return (c.plan||[]).filter(x=>num(x.amount)>num(x.covered)).sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999'))[0]}
+function reminderRows(){let now=today(),limit=addMonth(now,0);let end=new Date(now+'T12:00:00');end.setDate(end.getDate()+7);let endISO=end.getFullYear()+'-'+String(end.getMonth()+1).padStart(2,'0')+'-'+String(end.getDate()).padStart(2,'0');let out=[];records.forEach(c=>(c.plan||[]).forEach((p,i)=>{let left=Math.max(0,num(p.amount)-num(p.covered));if(left>0&&p.date&&p.date<=endISO)out.push({c,p,i,left,late:p.date<now})}));return out.sort((a,b)=>a.p.date.localeCompare(b.p.date))}
+function renderReminders(){let box=$('reminderItems'),items=reminderRows();box.innerHTML='';$('reminderCount').textContent=items.length+' reminders';if(!items.length){box.innerHTML='<span class="muted">No overdue or upcoming dues in the next 7 days.</span>';return}items.forEach(x=>{let el=document.createElement('span');el.className='reminder-item';el.innerHTML=`<b>${esc(x.c.name)}</b> · ${dateLabel(x.p.date)} · <b>${money(x.left)}</b> · <span class="${x.late?'overdue':'soon'}">${x.late?'OVERDUE':x.p.date===today()?'DUE TODAY':'UPCOMING'}</span>`;box.append(el)})}
+function cell(tr,text,cls=''){let td=document.createElement('td');td.textContent=text;if(cls)td.className=cls;tr.append(td);return td}
+function actionButton(parent,label,cls,fn){let b=document.createElement('button');b.textContent=label;b.className=(cls||'')+' small';b.onclick=fn;parent.append(b)}
+function render(){let body=$('customers'),q=$('search').value.trim().toLowerCase();body.innerHTML='';
+records.forEach((c,i)=>{if(q&&!`${c.name} ${c.mobile} ${c.item}`.toLowerCase().includes(q))return;
+let tr=document.createElement('tr');cell(tr,i+1);cell(tr,c.name);cell(tr,c.mobile||'');cell(tr,c.item||'');cell(tr,money(c.total),'money');cell(tr,money(received(c)),'money');cell(tr,money(balance(c)),'money '+(balance(c)>0?'balance':'zero'));
+let nx=nextUnpaid(c);cell(tr,nx?dateLabel(nx.date)+' / '+money(Math.max(0,num(nx.amount)-num(nx.covered))):'—');
+let ac=cell(tr,'','actions');actionButton(ac,'+ Payment','green',()=>openPayment(c.id));actionButton(ac,'Details','',()=>toggleDetails(c.id,detail));actionButton(ac,'WhatsApp','green',()=>whatsapp(c));actionButton(ac,'Edit','',()=>openCustomer(c.id));actionButton(ac,'Delete','red',()=>deleteCustomer(c.id));body.append(tr);
+let detail=document.createElement('tr');detail.className='detail-row';detail.hidden=true;let dc=document.createElement('td');dc.colSpan=9;detail.append(dc);
+let title=document.createElement('b');title.textContent='Installment Plan — '+c.name;dc.append(title);
+let plan=document.createElement('table');plan.className='detail-table';plan.innerHTML='<thead><tr><th>No.</th><th>Due Date</th><th>Planned Amount</th><th>Paid Against Plan</th><th>Remaining</th><th>Status</th></tr></thead>';
+let pb=document.createElement('tbody');(c.plan||[]).forEach((p,j)=>{let r=document.createElement('tr'),left=Math.max(0,num(p.amount)-num(p.covered)),status=left===0?'PAID':p.date<today()?'OVERDUE':p.date===today()?'DUE TODAY':'UPCOMING';[j+1,dateLabel(p.date),money(p.amount),money(p.covered),money(left),status].forEach((v,k)=>{let td=document.createElement('td');td.textContent=v;if(k===5)td.className=left===0?'paid':p.date<today()?'overdue':'soon';r.append(td)});pb.append(r)});plan.append(pb);dc.append(plan);
+let ptTitle=document.createElement('p');ptTitle.innerHTML='<b>Actual Payment History</b>';ptTitle.style.margin='10px 0 3px';dc.append(ptTitle);
+if(!(c.payments||[]).length){let m=document.createElement('span');m.className='muted';m.textContent='No payments have been recorded yet.';dc.append(m)}else{let hist=document.createElement('table');hist.className='detail-table';hist.innerHTML='<thead><tr><th>No.</th><th>Payment Date</th><th>Amount Received</th><th>Remarks</th><th>Action</th></tr></thead>';let hb=document.createElement('tbody');c.payments.forEach((p,j)=>{let r=document.createElement('tr');[j+1,dateLabel(p.date),money(p.amount),p.remark||'—'].forEach(v=>{let td=document.createElement('td');td.textContent=v;r.append(td)});let a=document.createElement('td');actionButton(a,'Edit','',()=>editPayment(c.id,j));actionButton(a,'Delete','red',()=>deletePayment(c.id,j));r.append(a);hb.append(r)});hist.append(hb);dc.append(hist)}
+body.append(detail);
+});
+stats();renderReminders()}
+function toggleDetails(id,row){row.hidden=!row.hidden}
+function deleteCustomer(id){if(!confirm('Delete this customer and all payment history?'))return;records=records.filter(c=>c.id!==id);persist();render()}
+function deletePayment(id,j){if(!confirm('Delete this payment entry?'))return;let c=records.find(x=>x.id===id);c.payments.splice(j,1);allocate(c);persist();render()}
+function allocate(c){let left=regularReceived(c);(c.plan||[]).forEach(p=>{p.covered=Math.min(num(p.amount),left);left-=p.covered})}
+function show(id){$(id).classList.add('show')}function hide(id){$(id).classList.remove('show')}
+function openCustomer(id=null){editId=id;let c=id?records.find(x=>x.id===id):null;$('customerHeading').textContent=c?'Edit Customer / Installment Plan':'Add Customer / Machine';$('fName').value=c?.name||'';$('fMobile').value=c?.mobile||'';$('fItem').value=c?.item||'';$('fTotal').value=c?.total??'';$('fAdvance').value=c?advanceReceived(c):'';$('fAdvanceDate').value=c?(c.payments||[]).find(p=>p.kind==='advance')?.date||today():today();$('fCount').value=c?.plan?.length||4;$('fFirstDate').value=c?.plan?.[0]?.date||today();draft=c?JSON.parse(JSON.stringify(c.plan||[])):[];if(!c)buildPlan();else drawPlan();show('customerModal')}
+function remainingToSchedule(){return Math.max(0,num($('fTotal').value)-num($('fAdvance').value))}
+function buildPlan(){let count=Number($('fCount').value),total=remainingToSchedule(),start=$('fFirstDate').value;if(!count||!start){draft=[];drawPlan();return}let each=Math.floor(total/count*100)/100;draft=Array.from({length:count},(_,i)=>({date:addMonth(start,i),amount:i===count-1?Math.round((total-each*(count-1))*100)/100:each,covered:0}));drawPlan()}
+function divideDraftEqually(){let count=draft.length,total=remainingToSchedule();if(!count)return;let each=Math.floor(total/count*100)/100;draft.forEach((p,i)=>p.amount=i===count-1?Math.round((total-each*(count-1))*100)/100:each);drawPlan()}
+function syncCountSelector(){let count=draft.length,sel=$('fCount');if(![...sel.options].some(o=>Number(o.value)===count)){let opt=document.createElement('option');opt.value=String(count);opt.textContent=count+' installments';sel.append(opt)}sel.value=String(count)}
+function addDraftInstallment(){let last=draft.length?draft[draft.length-1].date:$('fFirstDate').value||today();draft.push({date:addMonth(last,1),amount:0,covered:0});syncCountSelector();drawPlan()}
+function drawPlan(){let box=$('scheduleGrid');box.innerHTML='';['No.','Due Date','Amount (₹)',''].forEach(t=>{let e=document.createElement('div');e.className='head';e.textContent=t;box.append(e)});draft.forEach((p,i)=>{let no=document.createElement('div');no.className='n';no.textContent=i+1;box.append(no);let d=document.createElement('input');d.type='date';d.value=p.date||'';d.onchange=()=>{p.date=d.value;updatePlanTotal()};box.append(d);let a=document.createElement('input');a.type='number';a.min='0';a.step='0.01';a.value=p.amount;a.oninput=()=>{p.amount=a.value===''?'':num(a.value);updatePlanTotal()};box.append(a);let rm=document.createElement('button');rm.type='button';rm.className='red small';rm.textContent='Remove';rm.disabled=draft.length<=1;rm.onclick=()=>{draft.splice(i,1);syncCountSelector();drawPlan()};box.append(rm)});syncCountSelector();updatePlanTotal()}
+function updatePlanTotal(){let total=draft.reduce((s,p)=>s+num(p.amount),0),remaining=remainingToSchedule(),diff=remaining-total;$('planTotal').textContent='Scheduled: '+money(total)+' · '+(Math.abs(diff)<0.01?'Matches remaining balance':(diff>0?'Not yet scheduled: ':'Over scheduled by ')+money(Math.abs(diff)))}
+function saveCustomer(){let name=$('fName').value.trim(),total=Number($('fTotal').value),advance=num($('fAdvance').value);if(!name||!Number.isFinite(total)||total<=0){alert('Please enter the customer name and a valid machine amount.');return}if(advance>total){alert('Advance payment cannot exceed the total machine amount.');return}let remaining=total-advance;if(draft.length&&Math.abs(draft.reduce((s,p)=>s+num(p.amount),0)-remaining)>0.01){alert('The total of the installment amounts must equal the balance remaining after the advance. You can use “Divide Remaining Equally” to calculate the amounts automatically.');return}
+let c=editId?records.find(x=>x.id===editId):null;if(!c){c={id:'cust_'+Date.now(),payments:[],plan:[]};records.push(c)}
+c.name=name;c.mobile=$('fMobile').value.trim();c.item=$('fItem').value.trim();c.total=total;
+c.payments=(c.payments||[]).filter(p=>p.kind!=='advance');
+if(advance>0)c.payments.unshift({date:$('fAdvanceDate').value||today(),amount:advance,remark:'Advance received',kind:'advance'});
+c.plan=draft.map(p=>({...p,amount:num(p.amount),covered:0}));allocate(c);persist();hide('customerModal');render()}
+function openPayment(id){paymentId=id;paymentEditIndex=null;let c=records.find(x=>x.id===id);$('paymentHeading').textContent='Add Payment Received';$('paymentCustomer').textContent=c.name+' · Balance: '+money(balance(c));$('payDate').value=today();$('payAmount').value='';$('payRemark').value='';$('payFullBalance').style.display='inline-block';show('paymentModal')}
+function savePayment(){let c=records.find(x=>x.id===paymentId),amount=Number($('payAmount').value);if(!c||!Number.isFinite(amount)||amount<=0){alert('Please enter a valid payment amount.');return}let old=paymentEditIndex===null?null:c.payments[paymentEditIndex];let available=balance(c)+(old?num(old.amount):0);if(amount>available+0.009){alert('Payment amount cannot exceed the outstanding balance. Maximum allowed: '+money(available));return}let entry={date:$('payDate').value||today(),amount,remark:$('payRemark').value.trim()};if(old&&old.kind)entry.kind=old.kind;if(paymentEditIndex===null)c.payments.push(entry);else c.payments[paymentEditIndex]=entry;allocate(c);persist();hide('paymentModal');$('payFullBalance').style.display='inline-block';render()}
+function editPayment(id,j){let c=records.find(x=>x.id===id),p=c.payments[j];paymentId=id;paymentEditIndex=j;$('paymentHeading').textContent=p.kind==='advance'?'Edit Advance Payment':'Edit Payment Entry';$('paymentCustomer').textContent=c.name+' · Update payment details';$('payDate').value=p.date||today();$('payAmount').value=p.amount;$('payRemark').value=p.remark||'';$('payFullBalance').style.display='none';show('paymentModal')}
+function whatsapp(c){if(!c.mobile){alert("Please enter the customer's mobile number first.");return}let phone=c.mobile.replace(/\D/g,'');if(phone.length===10)phone='91'+phone;let plan=(c.plan||[]).map((p,i)=>{let rem=Math.max(0,num(p.amount)-num(p.covered));return `${i+1}. ${dateLabel(p.date)} — ${money(p.amount)} | Paid: ${money(p.covered)} | Due: ${money(rem)}`}).join('\n');let history=(c.payments||[]).map(p=>`${dateLabel(p.date)}: ${money(p.amount)}${p.kind==='advance'?' (Advance)':p.remark?' ('+p.remark+')':''}`).join('\n');let msg=`Dear ${c.name},\n\nMachine: ${c.item}\nTotal Amount: ${money(c.total)}\nAdvance Received: ${money(advanceReceived(c))}\nTotal Received: ${money(received(c))}\nBalance Due: ${money(balance(c))}\n\nINSTALLMENT SCHEDULE:\n${plan||'No installment schedule has been added'}\n\nPAYMENT RECEIVED:\n${history||'No payments have been recorded yet'}\n\nPlease pay the outstanding amount according to the schedule.\n\nIf you have already made the payment, please ignore this message.\n\nThis is a system-generated message.\n\nThank you,\nMulti Plaza`;window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank')}
+function requestReminder(){if(!('Notification'in window)){alert('This browser does not support notifications.');return}Notification.requestPermission().then(p=>{if(p==='granted'){notifyDue(true);alert('Reminder permission enabled. Keep this register open for browser reminders.')}else alert('Notification permission was not granted.')})}
+function notifyDue(force=false){if(!('Notification'in window)||Notification.permission!=='granted')return;let a=reminderRows();if(!a.length)return;let key='mp_installment_notified_'+today();if(!force&&localStorage.getItem(key))return;new Notification('Multi Plaza — Installment Due',{body:a.slice(0,4).map(x=>`${x.c.name}: ${money(x.left)} due ${dateLabel(x.p.date)}`).join(' | ')});localStorage.setItem(key,'1')}
+function exportCSV(){let out=[['Customer','Mobile','Machine','Total Amount','Installment No.','Due Date','Scheduled Amount','Paid Against Plan','Actual Payment Date','Payment Amount','Remarks']];records.forEach(c=>{if(!c.plan.length&&!c.payments.length)out.push([c.name,c.mobile,c.item,c.total,'','','','','','','']);(c.plan||[]).forEach((p,i)=>{let hist=i===0?(c.payments||[]):[];if(!hist.length)out.push([c.name,c.mobile,c.item,c.total,i+1,p.date,p.amount,p.covered,'','','']);else hist.forEach(h=>out.push([c.name,c.mobile,c.item,c.total,i+1,p.date,p.amount,p.covered,h.date,h.amount,h.remark]))})});let csv='\ufeff'+out.map(r=>r.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(',')).join('\r\n');let a=document.createElement('a'),u=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.href=u;a.download='Multi_Plaza_Installment_Register.csv';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
+$('addCustomer').onclick=()=>openCustomer();$('saveCustomer').onclick=saveCustomer;$('search').oninput=render;$('export').onclick=exportCSV;$('reminderPermission').onclick=requestReminder;
+$('fCount').onchange=buildPlan;$('fFirstDate').onchange=buildPlan;
+$('fTotal').oninput=()=>{if(!editId)buildPlan();else updatePlanTotal()};
+$('fAdvance').oninput=()=>{if(!editId)buildPlan();else updatePlanTotal()};
+$('addInstallment').onclick=addDraftInstallment;$('divideEqually').onclick=divideDraftEqually;
+$('savePayment').onclick=savePayment;$('payFullBalance').onclick=()=>{let c=records.find(x=>x.id===paymentId);if(c){$('payAmount').value=balance(c).toFixed(2);$('payRemark').value='Full and final payment'}};
+document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>{hide(b.dataset.close);if(b.dataset.close==='paymentModal')$('payFullBalance').style.display='inline-block'});
+['customerModal','paymentModal'].forEach(id=>$(id).addEventListener('click',e=>{if(e.target===$(id))hide(id)}));
+async function initialise(){
+  let loadedFromServer=false;
+  let serverHasRecords=false;
+  try{
+    const response=await fetch('/api/data/installment_register');
+    if(!response.ok)throw new Error('Database unavailable');
+    const serverData=await response.json();
+    if(Array.isArray(serverData)){
+      loadedFromServer=true;
+      serverHasRecords=serverData.length>0;
+      if(serverHasRecords) records=serverData;
+    }
+  }catch(e){ loadedFromServer=false; }
+
+  // If PostgreSQL is empty, preserve and migrate this browser's existing draft
+  // instead of replacing it with an empty server response.
+  if(!serverHasRecords){
+    try{
+      let saved=localStorage.getItem(KEY);
+      if(saved){
+        const localRecords=JSON.parse(saved);
+        if(Array.isArray(localRecords)&&localRecords.length)records=localRecords;
+      } else {
+        let old=localStorage.getItem('multi_plaza_installment_flexible_v2');
+        if(old){
+          const legacy=JSON.parse(old);
+          if(Array.isArray(legacy)) records=legacy.map(c=>({...c,id:c.id||'cust_'+Date.now()+Math.random(),payments:c.payments||[],plan:(c.schedule||[]).map(s=>({...s,covered:s.paid||0}))}));
+        }
+      }
+    }catch(e){ if(!Array.isArray(records))records=[]; }
+  }
+  if(!Array.isArray(records))records=[];
+  records=records.map(c=>({...c,id:c.id||'cust_'+Math.random(),payments:Array.isArray(c.payments)?c.payments:[],plan:Array.isArray(c.plan)?c.plan:[]}));
+  records.forEach(allocate);
+  render();
+  if(!serverHasRecords && records.length){
+    persist();
+    $('saveState').textContent=loadedFromServer?'Migrating existing records to database…':'Local backup loaded — syncing to database…';
+  }else if(loadedFromServer){
+    $('saveState').textContent='Loaded from database';
+  }
+}
+initialise();
+if('Notification'in window&&Notification.permission==='granted'){notifyDue();setInterval(()=>notifyDue(),60*60*1000)}
+})();
+</script>
+</body></html>
