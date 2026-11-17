@@ -228,6 +228,16 @@ async function initialise(){
   records.forEach(allocate);render();
   if(!loadedFromServer)persist();else $('saveState').textContent='Loaded from database';
 }
+// Flush pending changes to PostgreSQL when leaving this section.
+function flushInstallments(){
+  clearTimeout(saveTimer);
+  try{
+    const body=JSON.stringify(records);
+    fetch('/api/data/installment_register',{method:'PUT',headers:{'Content-Type':'application/json'},body,keepalive:true});
+  }catch(e){}
+}
+window.addEventListener('pagehide',flushInstallments);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushInstallments();});
 initialise();
 if('Notification'in window&&Notification.permission==='granted'){notifyDue();setInterval(()=>notifyDue(),60*60*1000)}
 })();

@@ -333,6 +333,29 @@ def backup_export():
         "legacy_app_data_backup": legacy_rows
     })
 
+@app.get("/api/database/status")
+def database_status():
+    """Report database connectivity and the expected module tables."""
+    from sqlalchemy import inspect
+    db.session.execute(text("SELECT 1"))
+    inspector = inspect(db.engine)
+    existing = set(inspector.get_table_names())
+    expected = [
+        "product_list",
+        "credit_supply_register",
+        "installment_register",
+        "others_register",
+        "quotation_data",
+        "customers",
+        "app_data",
+    ]
+    return jsonify({
+        "status": "ok",
+        "database": "connected",
+        "tables": {name: name in existing for name in expected},
+    })
+
+
 @app.get("/health")
 def health():
     # This checks the actual database connection, not only whether Flask is running.

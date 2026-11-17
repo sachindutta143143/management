@@ -18,6 +18,15 @@ function render(){let b=document.getElementById('rows');b.innerHTML='';data.forE
 let timer;function saveSoon(){clearTimeout(timer);document.getElementById('status').textContent='Changes pending…';timer=setTimeout(save,650)}
 async function save(){try{let r=await fetch('/api/data/others_register',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});if(!r.ok)throw Error();document.getElementById('status').textContent='Auto-saved to database';try{localStorage.setItem('mp_others_draft',JSON.stringify(data))}catch(e){}}catch(e){document.getElementById('status').textContent='Save failed — check connection'}}
 window.addEventListener('beforeunload',()=>{try{localStorage.setItem('mp_others_draft',JSON.stringify(data))}catch(e){}});
+function flushOthers(){
+  clearTimeout(timer);
+  try{
+    const body=JSON.stringify(data);
+    fetch('/api/data/others_register',{method:'PUT',headers:{'Content-Type':'application/json'},body,keepalive:true});
+  }catch(e){}
+}
+window.addEventListener('pagehide',flushOthers);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushOthers();});
 async function load(){try{let r=await fetch('/api/data/others_register');if(r.ok){let d=await r.json();if(Array.isArray(d))data=d.map(row)}}catch(e){}if(!data.length){try{let draft=JSON.parse(localStorage.getItem('mp_others_draft')||'null');if(Array.isArray(draft))data=draft.map(row)}catch(e){}}if(!data.length)data=[row()];render()}
 document.getElementById('add').onclick=()=>{data.push(row());render();save()};document.getElementById('save').onclick=save;load();
 </script></body></html>

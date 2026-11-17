@@ -1146,6 +1146,9 @@ html, body { margin:0; }
  function schedule(){clearTimeout(timer);let status=document.getElementById('autoSaveStatus');if(status)status.textContent='Saving…';timer=setTimeout(save,700)}
  document.addEventListener('input',schedule);document.addEventListener('change',schedule);document.addEventListener('click',e=>{if(e.target.closest('button'))schedule()});
  async function init(){try{let r=await fetch('/api/data/quotation_data');if(r.ok){let d=await r.json();if(d&&d.controls)apply(d);else{let local=JSON.parse(localStorage.getItem(KEY)||'null');apply(local)}}else apply(JSON.parse(localStorage.getItem(KEY)||'null'))}catch(e){try{apply(JSON.parse(localStorage.getItem(KEY)||'null'))}catch(_){}}}
+ function flushQuotation(){clearTimeout(timer);try{const body=JSON.stringify(snapshot());fetch('/api/data/quotation_data',{method:'PUT',headers:{'Content-Type':'application/json'},body,keepalive:true});}catch(e){}}
+ window.addEventListener('pagehide',flushQuotation);
+ document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushQuotation();});
  window.addEventListener('beforeunload',()=>{try{localStorage.setItem(KEY,JSON.stringify(snapshot()))}catch(e){}});init();
 })();
 </script>
