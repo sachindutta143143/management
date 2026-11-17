@@ -153,6 +153,11 @@ def customers_page():
     return serve_page("customers.html")
 
 
+@app.get("/installments")
+def installments_page():
+    return serve_page("installments.html")
+
+
 @app.get("/others")
 def others_page():
     return serve_page("others.html")

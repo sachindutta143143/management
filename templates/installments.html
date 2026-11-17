@@ -207,45 +207,26 @@ document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>{hide(b.datas
 ['customerModal','paymentModal'].forEach(id=>$(id).addEventListener('click',e=>{if(e.target===$(id))hide(id)}));
 async function initialise(){
   let loadedFromServer=false;
-  let serverHasRecords=false;
   try{
     const response=await fetch('/api/data/installment_register');
     if(!response.ok)throw new Error('Database unavailable');
     const serverData=await response.json();
-    if(Array.isArray(serverData)){
-      loadedFromServer=true;
-      serverHasRecords=serverData.length>0;
-      if(serverHasRecords) records=serverData;
-    }
-  }catch(e){ loadedFromServer=false; }
-
-  // If PostgreSQL is empty, preserve and migrate this browser's existing draft
-  // instead of replacing it with an empty server response.
-  if(!serverHasRecords){
+    if(Array.isArray(serverData)){records=serverData;loadedFromServer=true;}
+  }catch(e){}
+  if(!loadedFromServer){
     try{
       let saved=localStorage.getItem(KEY);
-      if(saved){
-        const localRecords=JSON.parse(saved);
-        if(Array.isArray(localRecords)&&localRecords.length)records=localRecords;
-      } else {
+      if(saved)records=JSON.parse(saved);
+      else{
         let old=localStorage.getItem('multi_plaza_installment_flexible_v2');
-        if(old){
-          const legacy=JSON.parse(old);
-          if(Array.isArray(legacy)) records=legacy.map(c=>({...c,id:c.id||'cust_'+Date.now()+Math.random(),payments:c.payments||[],plan:(c.schedule||[]).map(s=>({...s,covered:s.paid||0}))}));
-        }
+        if(old){records=JSON.parse(old);records=records.map(c=>({...c,id:c.id||'cust_'+Date.now()+Math.random(),payments:c.payments||[],plan:(c.schedule||[]).map(s=>({...s,covered:s.paid||0}))}));}
       }
-    }catch(e){ if(!Array.isArray(records))records=[]; }
+    }catch(e){records=[]}
   }
   if(!Array.isArray(records))records=[];
   records=records.map(c=>({...c,id:c.id||'cust_'+Math.random(),payments:Array.isArray(c.payments)?c.payments:[],plan:Array.isArray(c.plan)?c.plan:[]}));
-  records.forEach(allocate);
-  render();
-  if(!serverHasRecords && records.length){
-    persist();
-    $('saveState').textContent=loadedFromServer?'Migrating existing records to database…':'Local backup loaded — syncing to database…';
-  }else if(loadedFromServer){
-    $('saveState').textContent='Loaded from database';
-  }
+  records.forEach(allocate);render();
+  if(!loadedFromServer)persist();else $('saveState').textContent='Loaded from database';
 }
 initialise();
 if('Notification'in window&&Notification.permission==='granted'){notifyDue();setInterval(()=>notifyDue(),60*60*1000)}

@@ -68,28 +68,20 @@ Important limitations:
 The Others page now uses the same full register interface and features as Credit / Supply Register (dashboard totals, editable grid, payment 1/2/3 with remarks, Excel/CSV import/export, row controls, and auto-save). It uses a separate PostgreSQL key `others_register` and separate browser storage key, so its records remain independent from Credit / Supply.
 
 
-## Railway PostgreSQL data organization
+## Railway PostgreSQL data organization (current)
 
-The application uses the Railway `DATABASE_URL` environment variable when present.
-Set it on the **Web** service to a Railway reference to the PostgreSQL service's
-`DATABASE_URL` (for example `${{Postgres.DATABASE_URL}}`, using the actual service name).
-The app creates its SQLAlchemy tables at startup. `/health` runs `SELECT 1` and reports
-`database: connected` only when the database can be reached.
+The app uses Railway `DATABASE_URL` when configured. Current application tables are:
 
-Application data is stored in separate `app_data.data_key` records:
-- `product_list` — product catalogue
-- `credit_register` — Credit Register (separate from Others)
-- `supply_register` — reserved for a separate Supply Register
-- `others_register` — Others page only
-- `quotation_data` — quotation editor
-- `settings` — application settings
+- `product_list` — Product & Price List
+- `credit_supply_register` — ONE combined table for Credit and Supply. Row `id=1` stores JSON arrays under `credit` and `supply`.
+- `installment_register` — Installment Register
+- `others_register` — Others Register
+- `quotation_data` — Quotation data
+- `customers` — Customer details
+- `app_data` — legacy key/value storage retained for migration and rollback; it is not the current active storage for the modules above.
 
-Customer records are stored in the dedicated `customers` table. The Credit Register
-uses its own browser cache key (`excel_style_credit_register_v1`). The previous local
-key is read as a one-time fallback for compatibility; new saves use the Credit key.
+The old `credit_register` and `supply_register` tables/keys may remain in PostgreSQL from earlier versions. The application migrates their data into `credit_supply_register` when the combined row does not yet exist. Legacy tables and rows are intentionally retained; do not drop them until the new tables and all records have been verified and a Railway backup has been taken.
 
-Before deploying, verify Railway Web → Variables contains `DATABASE_URL`. Then open
-`/health` on the deployed domain and confirm it returns `status: ok` and
-`database: connected`. Configure Railway database backups separately; `db.create_all()`
-does not create backups. Keep the PostgreSQL service and its volume when redeploying
-the Web service.
+Installment Register is available at `/installments` and stores data through `/api/data/installment_register`.
+
+Verify the database connection by opening `/health` on the deployed site. Configure Railway PostgreSQL backups separately.
