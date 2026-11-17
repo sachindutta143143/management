@@ -33,6 +33,40 @@ class AppData(db.Model):
     payload = db.Column(db.JSON, nullable=False, default=dict)
 
 
+# Dedicated PostgreSQL tables. Credit and Supply intentionally share ONE table.
+class ProductListData(db.Model):
+    __tablename__ = "product_list"
+    id = db.Column(db.Integer, primary_key=True)
+    payload = db.Column(db.JSON, nullable=False, default=dict)
+
+class CreditSupplyRegisterData(db.Model):
+    __tablename__ = "credit_supply_register"
+    id = db.Column(db.Integer, primary_key=True)
+    # One row stores both lists: {"credit": [...], "supply": [...]}
+    payload = db.Column(db.JSON, nullable=False, default=lambda: {"credit": [], "supply": []})
+
+class OthersRegisterData(db.Model):
+    __tablename__ = "others_register"
+    id = db.Column(db.Integer, primary_key=True)
+    payload = db.Column(db.JSON, nullable=False, default=list)
+
+class QuotationData(db.Model):
+    __tablename__ = "quotation_data"
+    id = db.Column(db.Integer, primary_key=True)
+    payload = db.Column(db.JSON, nullable=False, default=dict)
+
+class InstallmentRegisterData(db.Model):
+    __tablename__ = "installment_register"
+    id = db.Column(db.Integer, primary_key=True)
+    payload = db.Column(db.JSON, nullable=False, default=list)
+
+SECTION_MODELS = {
+    "product_list": ProductListData,
+    "others_register": OthersRegisterData,
+    "quotation_data": QuotationData,
+    "installment_register": InstallmentRegisterData,
+}
+
 class Customer(db.Model):
     __tablename__ = "customers"
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid4()))
@@ -46,9 +80,46 @@ class Customer(db.Model):
     address = db.Column(db.Text)
 
 
-# Create tables when the app starts. A database connection problem is visible in deploy logs.
+# Create tables and safely migrate old Credit/Supply data into one combined row.
 with app.app_context():
     db.create_all()
+
+    # Migrate the other modules from the legacy key/value table when needed.
+    for section_key, model in SECTION_MODELS.items():
+        legacy = AppData.query.filter_by(data_key=section_key).first()
+        if legacy is not None and db.session.get(model, 1) is None:
+            db.session.add(model(id=1, payload=legacy.payload))
+
+    combined = db.session.get(CreditSupplyRegisterData, 1)
+    if combined is None:
+        # Prefer app_data as the authoritative legacy source. The earlier
+        # dedicated tables may be copies of these same values, so do not add
+        # both sources and accidentally duplicate records.
+        old_credit = AppData.query.filter_by(data_key="credit_register").first()
+        old_supply = AppData.query.filter_by(data_key="supply_register").first()
+
+        # If a legacy app_data key is absent, fall back to the previous
+        # dedicated table using SQL, without mapping it as an active model.
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        table_names = set(inspector.get_table_names())
+        def legacy_table_payload(table_name):
+            if table_name not in table_names:
+                return []
+            result = db.session.execute(text(f'SELECT payload FROM "{table_name}" WHERE id = 1')).first()
+            return (result[0] if result else []) or []
+
+        credit_payload = old_credit.payload if old_credit is not None else legacy_table_payload("credit_register")
+        supply_payload = old_supply.payload if old_supply is not None else legacy_table_payload("supply_register")
+        combined = CreditSupplyRegisterData(
+            id=1,
+            payload={
+                "credit": credit_payload if isinstance(credit_payload, list) else [],
+                "supply": supply_payload if isinstance(supply_payload, list) else [],
+            },
+        )
+        db.session.add(combined)
+    db.session.commit()
 
 
 # IMPORTANT: Serve these standalone HTML pages as static files.
@@ -82,11 +153,6 @@ def customers_page():
     return serve_page("customers.html")
 
 
-@app.get("/installments")
-def installments_page():
-    return serve_page("installments.html")
-
-
 @app.get("/others")
 def others_page():
     return serve_page("others.html")
@@ -105,45 +171,74 @@ def service_worker():
     return response
 
 
-ALLOWED_DATA_KEYS = {
-    "product_list",
-    "supply_register",
-    "credit_register",
-    "quotation_data",
-    "settings",
-    "others_register",
-    "installment_register",
-}
-
+ALLOWED_DATA_KEYS = set(SECTION_MODELS.keys()) | {"credit_register", "supply_register", "credit_supply_register"}
 
 @app.route("/api/data/<key>", methods=["GET", "PUT", "DELETE"])
 def app_data(key):
     if key not in ALLOWED_DATA_KEYS:
         return jsonify(error="Unknown data section"), 404
 
-    row = AppData.query.filter_by(data_key=key).first()
+    # Backward-compatible API aliases: both old URLs read/write the same row.
+    if key in {"credit_register", "supply_register", "credit_supply_register"}:
+        row = db.session.get(CreditSupplyRegisterData, 1)
+        if row is None:
+            row = CreditSupplyRegisterData(id=1, payload={"credit": [], "supply": []})
+            db.session.add(row)
+            db.session.commit()
 
+        if request.method == "GET":
+            if key == "credit_supply_register":
+                return jsonify(row.payload or {"credit": [], "supply": []})
+            part = "credit" if key == "credit_register" else "supply"
+            return jsonify((row.payload or {}).get(part, []))
+
+        if request.method == "DELETE":
+            if key == "credit_supply_register":
+                row.payload = {"credit": [], "supply": []}
+            else:
+                part = "credit" if key == "credit_register" else "supply"
+                data = dict(row.payload or {})
+                data[part] = []
+                row.payload = data
+            db.session.commit()
+            return jsonify(ok=True)
+
+        payload = request.get_json(silent=True)
+        if payload is None:
+            return jsonify(error="A valid JSON request body is required"), 400
+        if key == "credit_supply_register":
+            if not isinstance(payload, dict):
+                return jsonify(error="Combined payload must be an object with credit and supply arrays"), 400
+            row.payload = {"credit": payload.get("credit", []), "supply": payload.get("supply", [])}
+        else:
+            if not isinstance(payload, list):
+                return jsonify(error="Register data must be a JSON array"), 400
+            part = "credit" if key == "credit_register" else "supply"
+            data = dict(row.payload or {"credit": [], "supply": []})
+            data[part] = payload
+            row.payload = data
+        db.session.commit()
+        return jsonify(ok=True)
+
+    model = SECTION_MODELS[key]
+    row = db.session.get(model, 1)
     if request.method == "GET":
-        if row:
+        if row is not None:
             return jsonify(row.payload)
-        return jsonify({} if key == "product_list" else [])
-
+        return jsonify({} if key in {"product_list", "quotation_data"} else [])
     if request.method == "DELETE":
-        if row:
+        if row is not None:
             db.session.delete(row)
             db.session.commit()
         return jsonify(ok=True)
-
     payload = request.get_json(silent=True)
     if payload is None:
         return jsonify(error="A valid JSON request body is required"), 400
-
     if row is None:
-        row = AppData(data_key=key, payload=payload)
+        row = model(id=1, payload=payload)
+        db.session.add(row)
     else:
         row.payload = payload
-
-    db.session.add(row)
     db.session.commit()
     return jsonify(ok=True)
 
@@ -209,7 +304,14 @@ def customer_delete(customer_id):
 @app.get("/api/backup/export")
 def backup_export():
     """Export all server-side app data and customers as a JSON backup."""
-    payload = {row.data_key: row.payload for row in AppData.query.all()}
+    payload = {}
+    for section_key, model in SECTION_MODELS.items():
+        row = db.session.get(model, 1)
+        if row is not None:
+            payload[section_key] = row.payload
+    combined = db.session.get(CreditSupplyRegisterData, 1)
+    if combined is not None:
+        payload["credit_supply_register"] = combined.payload
     return jsonify({"created_at": __import__("datetime").datetime.utcnow().isoformat() + "Z", "app_data": payload, "customers": [customer_json(c) for c in Customer.query.order_by(Customer.name).all()]})
 
 @app.get("/health")
