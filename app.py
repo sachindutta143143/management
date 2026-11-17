@@ -158,6 +158,11 @@ def installments_page():
     return serve_page("installments.html")
 
 
+@app.get("/backup")
+def backup_page():
+    return serve_page("backup.html")
+
+
 @app.get("/others")
 def others_page():
     return serve_page("others.html")
@@ -317,7 +322,16 @@ def backup_export():
     combined = db.session.get(CreditSupplyRegisterData, 1)
     if combined is not None:
         payload["credit_supply_register"] = combined.payload
-    return jsonify({"created_at": __import__("datetime").datetime.utcnow().isoformat() + "Z", "app_data": payload, "customers": [customer_json(c) for c in Customer.query.order_by(Customer.name).all()]})
+    legacy_rows = [
+        {"id": row.id, "data_key": row.data_key, "payload": row.payload}
+        for row in AppData.query.order_by(AppData.id).all()
+    ]
+    return jsonify({
+        "created_at": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+        "app_data": payload,
+        "customers": [customer_json(c) for c in Customer.query.order_by(Customer.name).all()],
+        "legacy_app_data_backup": legacy_rows
+    })
 
 @app.get("/health")
 def health():
