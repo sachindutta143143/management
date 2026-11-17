@@ -59,5 +59,12 @@ check("database status", diag.status_code == 200 and diag_json.get("database") =
 
 failed = [name for name, ok, _ in results if not ok]
 print("\\nSummary:", len(results) - len(failed), "passed,", len(failed), "failed")
-tmp.cleanup()
+# Close SQLAlchemy's SQLite connections before Windows removes the temp folder.
+try:
+    with module.app.app_context():
+        module.db.session.remove()
+        module.db.engine.dispose()
+finally:
+    tmp.cleanup()
+
 sys.exit(1 if failed else 0)
