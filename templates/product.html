@@ -90,6 +90,12 @@ table td:nth-child(2) { color:#123f68; white-space:nowrap; }
 .menu-target-highlight{outline:3px solid #e4a52b!important;outline-offset:3px;transition:outline .2s}
 </style>
 <script src="/static/offline-sync.js"></script>
+
+<style id="dp-price-protection-style">
+.dp-price-cell{display:none!important;min-width:120px;white-space:nowrap}
+body.show-dp-price .dp-price-cell{display:table-cell!important}
+@media print{.dp-price-cell{display:none!important}}
+</style>
 </head>
 <body class="editing">
 <header>
@@ -204,7 +210,7 @@ table td:nth-child(2) { color:#123f68; white-space:nowrap; }
 <script>
 let editing=false;
 function toggleEdit(){editing=!editing;document.body.classList.toggle('editing',editing);document.querySelectorAll('#content h2,#content p,#content td,#content th,header h1,header p,header .sub').forEach(e=>e.contentEditable=editing?'true':'false');document.getElementById('editBtn').textContent='✎ Edit: '+(editing?'ON':'OFF');document.getElementById('status').textContent=editing?'Editing enabled — click product text, heading or price to change it.':'Editing disabled.';}
-function addRow(btn){let table=btn.previousElementSibling?.querySelector('table');if(!table)return;let cols=table.querySelector('thead tr')?.children.length||3;let tr=table.querySelector('tbody').insertRow();for(let i=0;i<cols;i++){let td=tr.insertCell();td.contentEditable=editing?'true':'false';td.textContent=i===0?'New product':'';}let act=tr.insertCell();act.className='row-actions';act.innerHTML='<button class="del-row" onclick="deleteRow(this)">×</button>';scheduleProductSave();}
+function addRow(btn){let table=btn.previousElementSibling?.querySelector('table');if(!table)return;let cols=table.querySelector('thead tr')?.children.length||3;let tr=table.querySelector('tbody').insertRow();for(let i=0;i<cols;i++){let td=tr.insertCell();td.contentEditable=editing?'true':'false';td.textContent=i===0?'New product':'';}let dp=tr.insertCell();dp.className='dp-price-cell';dp.contentEditable=editing?'true':'false';dp.textContent='';let act=tr.insertCell();act.className='row-actions';act.innerHTML='<button class="del-row" onclick="deleteRow(this)">×</button>';scheduleProductSave();}
 function deleteRow(btn){if(confirm('Delete this product row?')){btn.closest('tr').remove();scheduleProductSave();}}
 async function saveLocal(){
  const payload={content:document.getElementById('content').innerHTML,header:document.querySelector('header').innerHTML};
@@ -236,6 +242,37 @@ document.addEventListener('input',e=>{if(e.target.closest('#content')||e.target.
 document.addEventListener('blur',e=>{if(e.target.closest('#content')||e.target.closest('header'))scheduleProductSave();},true);
 function exportHTML(){let clone=document.documentElement.cloneNode(true);clone.querySelector('.toolbar')?.remove();clone.querySelectorAll('[contenteditable]').forEach(e=>e.removeAttribute('contenteditable'));clone.querySelectorAll('.row-actions,.add-row').forEach(e=>e.remove());let blob=new Blob(['<!doctype html>\n'+clone.outerHTML],{type:'text/html;charset=utf-8'});let a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Multi-Plaza-Product-Price-List.html';a.click();URL.revokeObjectURL(a.href);}
 function filterRows(){let q=document.getElementById('search').value.toLowerCase();document.querySelectorAll('tbody tr').forEach(r=>r.classList.toggle('hidden',!r.innerText.toLowerCase().includes(q)));document.querySelectorAll('h2').forEach(h=>{let next=h.nextElementSibling;let has=next?.querySelectorAll?Array.from(next.querySelectorAll('tbody tr')).some(r=>!r.classList.contains('hidden')):true;h.classList.toggle('hidden',!!q&&!has);});}
+
+const DP_PRICE_PASSWORD='multiplaza';
+let dpPriceVisible=false;
+function setDPPriceVisible(show){
+ dpPriceVisible=!!show;
+ document.body.classList.toggle('show-dp-price',dpPriceVisible);
+ const btn=document.getElementById('toggleDPPrice');
+ if(btn) btn.textContent=dpPriceVisible?'Hide DP Price':'Show DP Price';
+}
+function ensureDPPriceColumns(){
+ document.querySelectorAll('#content table').forEach(table=>{
+   const head=table.querySelector('thead tr');
+   if(!head) return;
+   if(!head.querySelector('.dp-price-cell')){
+     const th=document.createElement('th'); th.className='dp-price-cell'; th.textContent='DP Price'; head.appendChild(th);
+   }
+   table.querySelectorAll('tbody tr').forEach(row=>{
+     if(!row.querySelector('.dp-price-cell')){
+       const td=document.createElement('td'); td.className='dp-price-cell'; td.contentEditable=editing?'true':'false'; td.textContent=''; row.appendChild(td);
+     }
+   });
+ });
+}
+function toggleDPPrice(){
+ if(dpPriceVisible){setDPPriceVisible(false);return;}
+ const entered=window.prompt('Enter password to show DP Price:');
+ if(entered===null) return;
+ if(entered!==DP_PRICE_PASSWORD){window.alert('Incorrect password. DP Price remains hidden.');setDPPriceVisible(false);return;}
+ setDPPriceVisible(true);
+}
+
 async function buildCompanyNav(){
  const picker=document.getElementById('companyPicker');
  const trigger=document.getElementById('companyPickerBtn');
@@ -243,12 +280,17 @@ async function buildCompanyNav(){
  if(!picker||!trigger||!list)return;
  const headings=Array.from(document.querySelectorAll('#content h2'));
  list.innerHTML='';
+ const dpButton=document.createElement('button');
+ dpButton.type='button'; dpButton.id='toggleDPPrice'; dpButton.setAttribute('role','menuitem');
+ dpButton.textContent='Show DP Price'; dpButton.addEventListener('click',()=>{list.classList.remove('open');trigger.setAttribute('aria-expanded','false');toggleDPPrice();});
+ list.appendChild(dpButton);
  headings.forEach((heading,index)=>{
    if(!heading.id) heading.id='product-section-'+(index+1);
    const item=document.createElement('button');
    item.type='button'; item.setAttribute('role','menuitem');
    item.textContent=heading.textContent.trim();
    item.addEventListener('click',()=>{
+     setDPPriceVisible(false);
      list.classList.remove('open'); trigger.setAttribute('aria-expanded','false');
      heading.scrollIntoView({behavior:'smooth',block:'start'});
      heading.classList.add('menu-target-highlight');
@@ -260,6 +302,8 @@ async function buildCompanyNav(){
  document.addEventListener('click',e=>{if(!picker.contains(e.target)){list.classList.remove('open');trigger.setAttribute('aria-expanded','false');}});
  document.addEventListener('keydown',e=>{if(e.key==='Escape'){list.classList.remove('open');trigger.setAttribute('aria-expanded','false');}});
 }
-loadLocal().then(buildCompanyNav);
+loadLocal().then(()=>{ensureDPPriceColumns();buildCompanyNav();setDPPriceVisible(false);});
+window.addEventListener('pagehide',()=>setDPPriceVisible(false));
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')setDPPriceVisible(false);});
 </script>
 </body></html>
