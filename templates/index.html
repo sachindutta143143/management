@@ -1,7 +1,18 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#123e66"><link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/static/icons/icon-192.png"><title>Multi Plaza Management</title>
-<style>*{box-sizing:border-box}body{margin:0;background:#edf3f8;font-family:Arial;color:#172033}.top{background:linear-gradient(115deg,#102f50,#1d5682);color:white;padding:16px;position:sticky;top:0;z-index:3}.top h2{margin:0 0 12px;font-size:19px}.nav{display:flex;gap:7px;flex-wrap:wrap}.nav a{color:white;text-decoration:none;border:1px solid #ffffff55;padding:10px 13px;border-radius:8px;font-weight:bold;font-size:13px}.nav a:hover{background:white;color:#173f65}iframe{display:block;width:100%;height:calc(100vh - 112px);min-height:600px;border:0;background:#f3f6fb}@media(max-width:600px){.top{padding:10px}.top h2{font-size:16px}.nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.nav a{text-align:center;padding:9px 4px;font-size:11px}iframe{height:calc(100dvh - 110px);min-height:520px}}</style><script src="/static/offline-sync.js"></script>
+<style>*{box-sizing:border-box}body{margin:0;background:#edf3f8;font-family:Arial;color:#172033}.top{background:linear-gradient(115deg,#102f50,#1d5682);color:white;padding:16px;position:sticky;top:0;z-index:3}.top h2{margin:0 0 12px;font-size:19px}.nav{display:flex;gap:7px;flex-wrap:wrap}.nav a{color:white;text-decoration:none;border:1px solid #ffffff55;padding:10px 13px;border-radius:8px;font-weight:bold;font-size:13px}.nav a:hover{background:white;color:#173f65}iframe{display:block;width:100%;height:calc(100vh - 112px);min-height:600px;border:0;background:#f3f6fb}@media(max-width:600px){.top{padding:10px}.top h2{font-size:16px}.nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.nav a{text-align:center;padding:9px 4px;font-size:11px}iframe{height:calc(100dvh - 110px);min-height:520px}}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.topbar h2{margin:0}
+.mp-more-wrap{position:relative;flex:0 0 auto}
+.mp-more-btn{width:42px;height:40px;border:1px solid #ffffff88;border-radius:9px;background:#ffffff18;color:#fff;font-size:27px;line-height:1;cursor:pointer}
+.mp-more-menu{display:none;position:absolute;right:0;top:calc(100% + 7px);z-index:50;min-width:230px;max-height:75vh;overflow:auto;background:#fff;border:1px solid #d6e0ea;border-radius:10px;padding:7px;box-shadow:0 12px 32px #07182b55}
+.mp-more-menu.open{display:block}
+.mp-more-menu a,.mp-more-menu button{display:block;width:100%;padding:11px 12px;border:0;border-radius:7px;background:#fff;color:#173f65;text-decoration:none;text-align:left;font-weight:bold;font-size:13px}
+.mp-more-menu a:hover,.mp-more-menu button:hover{background:#edf4fb}
+.mp-more-menu button{background:#173f65;color:#fff;margin-top:5px}
+@media(max-width:600px){.topbar h2{font-size:15px}.mp-more-btn{width:40px;height:38px}.mp-more-menu{position:fixed;top:58px;right:10px;left:auto;min-width:min(280px,calc(100vw - 20px))}}
+</style><script src="/static/offline-sync.js"></script>
 </head>
-<body><header class="top"><h2>M/S. MULTI PLAZA — MANAGEMENT</h2><nav class="nav">
+<body><header class="top"><div class="topbar"><h2>M/S. MULTI PLAZA — MANAGEMENT</h2><div class="mp-more-wrap"><button type="button" id="mpMoreBtn" class="mp-more-btn" aria-label="Open Multi Plaza menu" aria-expanded="false">⋮</button><div id="mpMoreMenu" class="mp-more-menu"><a href="/product" target="workspace">1. Product &amp; Price List</a><button type="button" id="mpDpPrice">2. Show / Hide DP Price</button><button type="button" id="mpInstallApp">3. Install Multi Plaza App</button><a href="/credit" target="workspace">Credit / Supply Register</a><a href="/installments" target="workspace">Installment Register</a><a href="/others" target="workspace">Others</a><a href="/quotation" target="workspace">Quotation</a><a href="/customers" target="workspace">Customers</a><a href="/backup" target="workspace">Data Backup</a></div></div></div><nav class="nav">
 <a href="/product" target="workspace">Product &amp; Price List</a><a href="/credit" target="workspace">Credit / Supply Register</a><a href="/installments" target="workspace">Installment Register</a><a href="/others" target="workspace">Others</a><a href="/quotation" target="workspace">Quotation</a><a href="/customers" target="workspace">Customers</a><a href="/backup" target="workspace">Data Backup</a>
 <!-- Future section: add another navigation link and Flask route. -->
 </nav></header><iframe name="workspace" src="/product" title="Multi Plaza workspace"></iframe><script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(err=>console.warn("PWA service worker:",err)));}</script><button id="mpBackupButton" style="position:fixed;right:14px;bottom:54px;z-index:99998;background:#fff;border:1px solid #9ab0ca;border-radius:22px;padding:9px 13px;color:#173b68;font-weight:700;box-shadow:0 2px 8px #0002" onclick="MultiPlazaDownloadBackup()">⬇ Download All Data</button>
@@ -39,6 +50,46 @@
   window.addEventListener('load',()=>setTimeout(showReminder,1200));
   // Re-check when the user returns to the browser tab.
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)showReminder();});
+})();
+</script>
+
+<script>
+(function(){
+ const btn=document.getElementById('mpMoreBtn'),menu=document.getElementById('mpMoreMenu');
+ if(btn&&menu){
+  btn.addEventListener('click',()=>{const open=menu.classList.toggle('open');btn.setAttribute('aria-expanded',String(open));});
+  document.addEventListener('click',e=>{if(!menu.contains(e.target)&&!btn.contains(e.target)){menu.classList.remove('open');btn.setAttribute('aria-expanded','false');}});
+  menu.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{menu.classList.remove('open');btn.setAttribute('aria-expanded','false');}));
+ }
+ let installPrompt=null;
+ window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;});
+ const dp=document.getElementById('mpDpPrice');
+ if(dp)dp.addEventListener('click',()=>{
+  menu.classList.remove('open');btn.setAttribute('aria-expanded','false');
+  const frame=document.querySelector('iframe[name="workspace"]');
+  try{
+   if(frame&&frame.contentWindow&&typeof frame.contentWindow.toggleDPPrice==='function'){
+    frame.contentWindow.toggleDPPrice();
+   }else if(frame){
+    frame.onload=function(){
+     frame.onload=null;
+     try{if(typeof frame.contentWindow.toggleDPPrice==='function')frame.contentWindow.toggleDPPrice();}
+     catch(e){alert('Could not open DP Price. Please open Product & Price List and try again.');}
+    };
+    frame.src='/product';
+   }else{
+    alert('Product List is not available right now. Please refresh the page.');
+   }
+  }catch(e){alert('Please refresh the page and try again.');}
+ });
+ const install=document.getElementById('mpInstallApp');
+ if(install)install.addEventListener('click',async()=>{
+  menu.classList.remove('open');btn.setAttribute('aria-expanded','false');
+  if(window.matchMedia('(display-mode:standalone)').matches){alert('Multi Plaza is already installed.');return;}
+  if(installPrompt){installPrompt.prompt();const choice=await installPrompt.userChoice;installPrompt=null;if(choice.outcome==='accepted')alert('Installation started.');return;}
+  alert('Install from your browser menu: Chrome/Edge ⋮ > Save and share or More tools > Install page as app / Create shortcut. If unavailable, open the website in Chrome or Edge and refresh once.');
+ });
+ if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
 })();
 </script>
 </body></html>
