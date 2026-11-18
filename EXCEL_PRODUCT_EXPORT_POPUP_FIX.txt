@@ -1,0 +1,10 @@
+MULTI PLAZA BACKUP FIX
+
+1. Product List export now falls back to the bundled product catalogue HTML if the saved database/browser product HTML is empty.
+2. Product tables are parsed into one Product List worksheet; 351 catalogue rows were verified from the bundled product.html.
+3. DP Price column is included. Values are exported whenever present in saved product HTML; blank values remain blank rather than being invented.
+4. Data Backup page now opens a format-choice popup: Excel (.xlsx) or CSV Bundle (.zip).
+5. CSV Bundle contains one CSV file per Excel worksheet, using the same complete backup builder.
+6. Existing tables, records, backups and source files are not deleted or cleared.
+
+After deploying, open Data Backup and choose Excel or CSV Bundle.

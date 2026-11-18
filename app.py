@@ -481,9 +481,26 @@ def backup_excel():
     product_payload=data.get("product_list") or {}
     if isinstance(product_payload,dict):
         product_payload=dict(product_payload)
-        if product_local: product_payload["content"]=product_local
-        if product_header: product_payload["header"]=product_header
-    else: product_payload={"content":product_local or "", "header":product_header or ""}
+        # Browser copy is the most recent editable product list when supplied.
+        if product_local and str(product_local).strip():
+            product_payload["content"]=product_local
+        if product_header and str(product_header).strip():
+            product_payload["header"]=product_header
+    else:
+        product_payload={"content":product_local or "", "header":product_header or ""}
+
+    # Critical fallback: some older deployments never saved the initial catalogue
+    # HTML into PostgreSQL/localStorage. In that case export the bundled live catalogue
+    # rather than producing an empty "No product table" row.
+    product_html=str(product_payload.get("content") or "")
+    if not product_html.strip() or "<table" not in product_html.lower():
+        try:
+            from pathlib import Path
+            bundled=(Path(__file__).resolve().parent / "templates" / "product.html")
+            if bundled.exists():
+                product_html=bundled.read_text(encoding="utf-8")
+        except Exception:
+            pass
 
     wb=Workbook(); summary=wb.active; summary.title="Backup Summary"
     summary.append(["M/S. MULTI PLAZA — COMPLETE EXCEL BACKUP"])
@@ -528,9 +545,9 @@ def backup_excel():
     _write_sheet(wb,"Customers",customers)
 
     # Product list: export one product per row and preserve DP Price values separately.
-    product_headers, product_rows = _product_excel_rows(product_payload.get("content") or "")
+    product_headers, product_rows = _product_excel_rows(product_html)
     _write_sheet(wb,"Product List",product_rows or [["No product table could be parsed","","","","","","","",""]],headers=product_headers)
-    html_text="\n--- HEADER HTML ---\n"+str(product_payload.get("header") or "")+"\n--- PRODUCT CONTENT HTML ---\n"+str(product_payload.get("content") or "")
+    html_text="\n--- HEADER HTML ---\n"+str(product_payload.get("header") or "")+"\n--- PRODUCT CONTENT HTML ---\n"+product_html
     chunks=[html_text[i:i+30000] for i in range(0,len(html_text),30000)] or [""]
     _write_sheet(wb,"Product HTML Backup",[{"Part":i+1,"HTML Source":chunk} for i,chunk in enumerate(chunks)])
 
@@ -549,6 +566,30 @@ def backup_excel():
     output=BytesIO(); wb.save(output); output.seek(0)
     filename="Multi-Plaza-Complete-Backup-"+datetime.now().strftime("%Y-%m-%d_%H-%M")+".xlsx"
     return send_file(output,as_attachment=True,download_name=filename,mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+@app.post("/api/backup/csv.zip")
+def backup_csv_zip():
+    """Download every sheet from the complete backup as a separate CSV in one ZIP."""
+    import csv, zipfile
+    from io import BytesIO, StringIO
+    from openpyxl import load_workbook
+    # Reuse the exact same backup builder so CSV and Excel contain identical records.
+    excel_response = backup_excel()
+    excel_bytes = excel_response.get_data()
+    book = load_workbook(BytesIO(excel_bytes), read_only=True, data_only=True)
+    archive = BytesIO()
+    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zf:
+        for sheet in book.worksheets:
+            buffer = StringIO()
+            writer = csv.writer(buffer)
+            for row in sheet.iter_rows(values_only=True):
+                writer.writerow(["" if value is None else value for value in row])
+            zf.writestr(sheet.title.replace("/", "-") + ".csv", "\\ufeff" + buffer.getvalue())
+    archive.seek(0)
+    return send_file(archive, as_attachment=True,
+        download_name="Multi-Plaza-Complete-Backup-" + datetime.now().strftime("%Y-%m-%d_%H-%M") + ".zip",
+        mimetype="application/zip")
 
 
 @app.get("/api/database/status")

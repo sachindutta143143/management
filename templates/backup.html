@@ -21,21 +21,55 @@ button{border:0;border-radius:7px;padding:12px 16px;background:#1769b2;color:whi
 <div class="module"><strong>Legacy backup</strong><small>Older app_data records retained for recovery</small></div>
 </div></section>
 <section class="card"><h2>Download Excel backup</h2><p>Download one Excel workbook (.xlsx). Every module is placed in its own sheet, including product tables, Credit, Supply, installment schedules and payments.</p>
-<button id="download">⬇ Download Complete Excel Backup</button>
+<button id="download">⬇ Download Complete Backup</button>
+<div id="backupChoice" style="display:none;position:fixed;inset:0;background:#0b1c2dcc;z-index:9999;align-items:center;justify-content:center;padding:16px">
+ <div style="background:#fff;border-radius:14px;padding:22px;max-width:390px;width:100%;box-shadow:0 18px 55px #0005">
+  <h2 style="margin:0 0 8px;color:#174879">Choose Backup Format</h2>
+  <p style="margin:0 0 18px;color:#52677d">Download all Multi Plaza records in one complete backup.</p>
+  <button id="downloadExcel" style="width:100%;margin-bottom:10px">⬇ Download Excel (.xlsx)</button>
+  <button id="downloadCsv" class="secondary" style="width:100%;margin-bottom:10px">⬇ Download CSV Bundle (.zip)</button>
+  <button id="closeChoice" class="secondary" style="width:100%">Cancel</button>
+ </div>
+</div>
 <div id="status" class="status">Last backup time: checking…</div>
 </section>
 <section class="card warning"><strong>24-hour reminder:</strong> If no backup has been downloaded for 24 hours, a reminder popup will appear when the management website is open or opened again. The browser cannot silently download files while the website is closed.</section>
 </main>
 <script>
 const KEY='multi_plaza_last_backup_at_v1';
-function updateStatus(){const n=Number(localStorage.getItem(KEY)||0);document.getElementById('status').textContent=n?'Last backup downloaded: '+new Date(n).toLocaleString():'No Excel backup download recorded on this browser yet.';}
-async function download(){const b=document.getElementById('download'),s=document.getElementById('status');b.disabled=true;b.textContent='Preparing Excel workbook…';try{if(!navigator.onLine)throw Error('Internet connection is required.');
- const browserData={};
- for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&(k.startsWith('multi_plaza_')||k.startsWith('mp_installment_')||k==='multiPlazaPriceList'||k==='multiPlazaHeader'))browserData[k]=localStorage.getItem(k);}
- const customersResponse=await fetch('/api/customers');const customers=customersResponse.ok?await customersResponse.json():[];
- const r=await fetch('/api/backup/excel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({browser_local_storage_backup:browserData,customers})});
- if(!r.ok){let msg='Server could not create the Excel backup.';try{const j=await r.json();if(j.error)msg=j.error;}catch(_){}throw Error(msg);}
- const blob=await r.blob();const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='Multi-Plaza-Complete-Backup-'+new Date().toISOString().slice(0,10)+'.xlsx';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),3000);localStorage.setItem(KEY,String(Date.now()));s.textContent='Complete Excel backup download started. '+new Date().toLocaleString();
- }catch(e){s.textContent='Backup failed: '+e.message;}finally{b.disabled=false;b.textContent='⬇ Download Complete Excel Backup';updateStatus();}}
-document.getElementById('download').addEventListener('click',download);updateStatus();
+function updateStatus(){const n=Number(localStorage.getItem(KEY)||0);document.getElementById('status').textContent=n?'Last backup downloaded: '+new Date(n).toLocaleString():'No backup download recorded on this browser yet.';}
+const choice=document.getElementById('backupChoice');
+function openChoice(){choice.style.display='flex';}
+function closeChoice(){choice.style.display='none';}
+async function download(format){
+ const b=format==='xlsx'?document.getElementById('downloadExcel'):document.getElementById('downloadCsv');
+ const s=document.getElementById('status');
+ const old=b.textContent;b.disabled=true;b.textContent='Preparing…';
+ try{
+  if(!navigator.onLine)throw Error('Internet connection is required.');
+  const browserData={};
+  for(let i=0;i<localStorage.length;i++){
+   const k=localStorage.key(i);
+   if(k&&(k.startsWith('multi_plaza_')||k.startsWith('mp_installment_')||k==='multiPlazaPriceList'||k==='multiPlazaHeader'))browserData[k]=localStorage.getItem(k);
+  }
+  const customersResponse=await fetch('/api/customers');
+  const customers=customersResponse.ok?await customersResponse.json():[];
+  const endpoint=format==='xlsx'?'/api/backup/excel':'/api/backup/csv.zip';
+  const r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({browser_local_storage_backup:browserData,customers})});
+  if(!r.ok){let msg='Server could not create the backup.';try{const j=await r.json();if(j.error)msg=j.error;}catch(_){}throw Error(msg);}
+  const blob=await r.blob(),u=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=u;a.download=format==='xlsx'?'Multi-Plaza-Complete-Backup.xlsx':'Multi-Plaza-Complete-Backup-CSV.zip';
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+  localStorage.setItem(KEY,String(Date.now()));s.textContent='Backup download started successfully.';
+  closeChoice();updateStatus();
+ }catch(e){s.textContent='Backup failed: '+e.message;}
+ finally{b.disabled=false;b.textContent=old;}
+}
+document.getElementById('download').addEventListener('click',openChoice);
+document.getElementById('downloadExcel').addEventListener('click',()=>download('xlsx'));
+document.getElementById('downloadCsv').addEventListener('click',()=>download('csv'));
+document.getElementById('closeChoice').addEventListener('click',closeChoice);
+choice.addEventListener('click',e=>{if(e.target===choice)closeChoice();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeChoice();});
+updateStatus();
 </script></body></html>
