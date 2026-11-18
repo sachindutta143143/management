@@ -9,7 +9,7 @@ h2{margin:0 0 12px;color:#174879;font-size:18px}.modules{display:grid;grid-templ
 button{border:0;border-radius:7px;padding:12px 16px;background:#1769b2;color:white;font-weight:bold;cursor:pointer;font-size:14px}button:disabled{opacity:.6;cursor:wait}.secondary{background:#e9eff6;color:#174879;border:1px solid #cbd5e1}
 .status{margin-top:12px;color:#475569;line-height:1.5}.warning{background:#fff8e6;border:1px solid #f1d58a;padding:12px;border-radius:8px;line-height:1.5}
 </style></head><body>
-<header><h1>Multi Plaza — Data Backup</h1><p>Download a complete copy of your business records.</p></header>
+<header><h1>Multi Plaza — Data Backup</h1><p>Download all business records in one Excel workbook, with separate sheets for each register.</p></header>
 <main>
 <section class="card"><h2>Included in complete backup</h2><div class="modules">
 <div class="module"><strong>Product & Price List</strong><small>Product records and pricing</small></div>
@@ -20,25 +20,22 @@ button{border:0;border-radius:7px;padding:12px 16px;background:#1769b2;color:whi
 <div class="module"><strong>Customers</strong><small>Customer details</small></div>
 <div class="module"><strong>Legacy backup</strong><small>Older app_data records retained for recovery</small></div>
 </div></section>
-<section class="card"><h2>Download backup</h2><p>Download one JSON file containing the server-side Multi Plaza database data.</p>
-<button id="download">⬇ Download Complete Backup</button>
+<section class="card"><h2>Download Excel backup</h2><p>Download one Excel workbook (.xlsx). Every module is placed in its own sheet, including product tables, Credit, Supply, installment schedules and payments.</p>
+<button id="download">⬇ Download Complete Excel Backup</button>
 <div id="status" class="status">Last backup time: checking…</div>
 </section>
 <section class="card warning"><strong>24-hour reminder:</strong> If no backup has been downloaded for 24 hours, a reminder popup will appear when the management website is open or opened again. The browser cannot silently download files while the website is closed.</section>
 </main>
 <script>
 const KEY='multi_plaza_last_backup_at_v1';
-function updateStatus(){const n=Number(localStorage.getItem(KEY)||0);document.getElementById('status').textContent=n?'Last backup downloaded: '+new Date(n).toLocaleString():'No backup download recorded on this browser yet.';}
-async function download(){const b=document.getElementById('download'),s=document.getElementById('status');b.disabled=true;b.textContent='Preparing backup…';try{if(!navigator.onLine)throw Error('Internet connection is required.');const r=await fetch('/api/backup/export');if(!r.ok)throw Error('Server could not create the backup.');const serverData=await r.json();
-const browserData={};
-for(let i=0;i<localStorage.length;i++){
-  const k=localStorage.key(i);
-  if(k && (k.startsWith('multi_plaza_') || k.startsWith('mp_installment_') || k==='mp_installment_notified_'+new Date().toISOString().slice(0,10))){
-    browserData[k]=localStorage.getItem(k);
-  }
-}
-serverData.browser_local_storage_backup=browserData;
-const blob=new Blob([JSON.stringify(serverData,null,2)],{type:'application/json;charset=utf-8'});
-const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='Multi-Plaza-Complete-Backup-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1500);localStorage.setItem(KEY,String(Date.now()));s.textContent='Complete backup (database + browser local data) download started successfully. '+new Date().toLocaleString();}catch(e){s.textContent='Backup failed: '+e.message;}finally{b.disabled=false;b.textContent='⬇ Download Complete Backup';updateStatus();}}
+function updateStatus(){const n=Number(localStorage.getItem(KEY)||0);document.getElementById('status').textContent=n?'Last backup downloaded: '+new Date(n).toLocaleString():'No Excel backup download recorded on this browser yet.';}
+async function download(){const b=document.getElementById('download'),s=document.getElementById('status');b.disabled=true;b.textContent='Preparing Excel workbook…';try{if(!navigator.onLine)throw Error('Internet connection is required.');
+ const browserData={};
+ for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&(k.startsWith('multi_plaza_')||k.startsWith('mp_installment_')||k==='multiPlazaPriceList'||k==='multiPlazaHeader'))browserData[k]=localStorage.getItem(k);}
+ const customersResponse=await fetch('/api/customers');const customers=customersResponse.ok?await customersResponse.json():[];
+ const r=await fetch('/api/backup/excel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({browser_local_storage_backup:browserData,customers})});
+ if(!r.ok){let msg='Server could not create the Excel backup.';try{const j=await r.json();if(j.error)msg=j.error;}catch(_){}throw Error(msg);}
+ const blob=await r.blob();const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='Multi-Plaza-Complete-Backup-'+new Date().toISOString().slice(0,10)+'.xlsx';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),3000);localStorage.setItem(KEY,String(Date.now()));s.textContent='Complete Excel backup download started. '+new Date().toLocaleString();
+ }catch(e){s.textContent='Backup failed: '+e.message;}finally{b.disabled=false;b.textContent='⬇ Download Complete Excel Backup';updateStatus();}}
 document.getElementById('download').addEventListener('click',download);updateStatus();
 </script></body></html>

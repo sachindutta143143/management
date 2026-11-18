@@ -1,0 +1,18 @@
+MULTI PLAZA — COMPLETE EXCEL BACKUP
+
+The Data Backup page now downloads one .xlsx workbook instead of a JSON/CSV file.
+Workbook sheets include:
+- Backup Summary
+- Product List (parsed from the saved product HTML tables)
+- Product HTML Backup (full source retained in chunks)
+- Credit Register and Supply Register (exported separately for viewing, sourced from the same combined credit_supply_register table)
+- Installment Customers, Installment Schedule, Installment Payments
+- Others Register, Quotation Settings, Quotation Content, Customers
+- Legacy App Data, Browser Backup, Full Data Snapshot
+
+The workbook includes server-side PostgreSQL data and browser local-storage copies.
+Product browser copies are preferred when present so unsynced browser edits are not missed.
+Installment browser data is used as fallback only if the server installment list is empty.
+
+No database tables or business records are deleted or cleared by this backup feature.
+The existing JSON API endpoint remains available for compatibility; the Data Backup button downloads Excel.
