@@ -85,3 +85,7 @@ The old `credit_register` and `supply_register` tables/keys may remain in Postgr
 Installment Register is available at `/installments` and stores data through `/api/data/installment_register`.
 
 Verify the database connection by opening `/health` on the deployed site. Configure Railway PostgreSQL backups separately.
+
+
+## Cross-device shared data
+See `CROSS_DEVICE_SYNC_SETUP.txt`. Every device must open the same Railway URL, and the web service must have `DATABASE_URL` linked to the Railway PostgreSQL service. All business modules save to the shared server database; refresh/reopen another device to load the latest data.

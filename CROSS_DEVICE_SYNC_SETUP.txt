@@ -1,0 +1,52 @@
+MULTI PLAZA — CROSS-DEVICE SHARED DATA SETUP
+=============================================
+
+GOAL
+All phones, laptops, and desktop computers must use the SAME Railway PostgreSQL
+database. When a user opens a module on another device, it loads the saved
+records from PostgreSQL. Saves made from any device are stored in that same
+database and are available to the other devices when they reload/reopen the
+module.
+
+REQUIRED RAILWAY CONFIGURATION
+1. In the Railway project, make sure a PostgreSQL service exists and is running.
+2. Open the web service -> Variables.
+3. Add DATABASE_URL as a Railway reference to the PostgreSQL service's
+   DATABASE_URL variable (do not paste a different/local SQLite path).
+4. Redeploy the web service.
+5. Open https://YOUR-APP-DOMAIN/health
+   Expected: {"status":"ok","database":"connected","backend":"postgresql",
+              "railway_postgres":true}
+6. Open https://YOUR-APP-DOMAIN/api/database/status
+   Expected: status=ok, backend=postgresql, and all expected tables=true.
+
+HOW TO USE ACROSS DEVICES
+- Open the SAME deployed Railway app URL on every phone/laptop/desktop.
+- Do not run a separate local copy on each device.
+- Sign in / access the same app URL if your deployment uses authentication.
+- Add or edit records and wait for the page's save confirmation.
+- On another device, reopen the module or refresh the page to load the latest
+  saved server data. This package disables browser caching for app/API data.
+- Internet connection is required for shared updates.
+
+IMPORTANT LIMITATIONS / DATA SAFETY
+- Browser localStorage is private to each browser/device and is NOT shared.
+  Any old unsynced records that exist only on an old device must first be
+  opened in that same browser with this updated app so its recovery logic can
+  upload them when the PostgreSQL section is empty.
+- If PostgreSQL already contains records, it remains authoritative. Do not
+  overwrite it automatically with another device's local draft; export a
+  backup and reconcile those records carefully.
+- Do not remove the PostgreSQL service or change DATABASE_URL to SQLite.
+- Do not delete tables, records, backups, or old project files.
+- Simultaneous edits to the exact same register from two devices can still
+  result in the last full-register save winning. Avoid editing the same
+  register at the same time from multiple devices until row-level conflict
+  handling is added.
+
+THIS PACKAGE
+- Uses PostgreSQL as the shared production database on Railway.
+- Keeps SQLite only for local development outside Railway.
+- Preserves existing data migration/recovery behavior.
+- Adds no-cache response headers for app pages and API endpoints to prevent
+  stale browser/PWA responses when moving between devices.

@@ -38,6 +38,20 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True, "pool_recycle"
 db = SQLAlchemy(app)
 
 
+@app.after_request
+def prevent_stale_shared_data(response):
+    """Always fetch app pages and API data from the server, not an old device cache."""
+    if request.path.startswith("/api/") or request.path in {
+        "/", "/product", "/credit", "/quotation", "/customers",
+        "/installments", "/backup", "/others", "/health",
+        "/api/database/status",
+    }:
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
+
 class AppData(db.Model):
     __tablename__ = "app_data"
     id = db.Column(db.Integer, primary_key=True)
