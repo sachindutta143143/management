@@ -96,6 +96,14 @@ table td:nth-child(2) { color:#123f68; white-space:nowrap; }
 body.show-dp-price .dp-price-cell{display:table-cell!important}
 @media print{.dp-price-cell{display:none!important}}
 </style>
+<link rel="manifest" href="/static/manifest.webmanifest">
+<meta name="theme-color" content="#174879">
+<meta name="application-name" content="Multi Plaza Management">
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/static/service-worker.js').catch(()=>{}));
+}
+</script>
 </head>
 <body class="editing">
 <header>
@@ -284,6 +292,27 @@ async function buildCompanyNav(){
  dpButton.type='button'; dpButton.id='toggleDPPrice'; dpButton.setAttribute('role','menuitem');
  dpButton.textContent='Show DP Price'; dpButton.addEventListener('click',()=>{list.classList.remove('open');trigger.setAttribute('aria-expanded','false');toggleDPPrice();});
  list.appendChild(dpButton);
+
+ const installButton=document.createElement('button');
+ installButton.type='button'; installButton.id='installDesktopApp';
+ installButton.setAttribute('role','menuitem');
+ installButton.textContent='Install Multi Plaza Desktop App';
+ installButton.addEventListener('click',async()=>{
+   list.classList.remove('open');trigger.setAttribute('aria-expanded','false');
+   if(window.matchMedia('(display-mode: standalone)').matches){
+     alert('Multi Plaza is already installed as an app on this device.');
+     return;
+   }
+   if(window.__multiPlazaInstallPrompt){
+     window.__multiPlazaInstallPrompt.prompt();
+     const result=await window.__multiPlazaInstallPrompt.userChoice;
+     window.__multiPlazaInstallPrompt=null;
+     if(result && result.outcome==='accepted') alert('Multi Plaza installation started successfully.');
+     return;
+   }
+   alert('To install on desktop: In Chrome or Edge, open the browser menu (⋮) and choose Install page as app / Apps > Install this site as an app. If the option is not visible, refresh the page once and check that the site is open over HTTPS.');
+ });
+ list.appendChild(installButton);
  headings.forEach((heading,index)=>{
    if(!heading.id) heading.id='product-section-'+(index+1);
    const item=document.createElement('button');
@@ -305,5 +334,19 @@ async function buildCompanyNav(){
 loadLocal().then(()=>{ensureDPPriceColumns();buildCompanyNav();setDPPriceVisible(false);});
 window.addEventListener('pagehide',()=>setDPPriceVisible(false));
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')setDPPriceVisible(false);});
+</script>
+<script>
+window.__multiPlazaInstallPrompt=null;
+window.addEventListener('beforeinstallprompt',event=>{
+ event.preventDefault();
+ window.__multiPlazaInstallPrompt=event;
+ const b=document.getElementById('installDesktopApp');
+ if(b)b.textContent='Install Multi Plaza Desktop App';
+});
+window.addEventListener('appinstalled',()=>{
+ window.__multiPlazaInstallPrompt=null;
+ const b=document.getElementById('installDesktopApp');
+ if(b)b.textContent='Multi Plaza Installed';
+});
 </script>
 </body></html>

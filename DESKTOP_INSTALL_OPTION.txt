@@ -1,0 +1,8 @@
+DESKTOP INSTALL OPTION
+
+The Product & Price List page's existing three-dot menu (⋮) now includes:
+"Install Multi Plaza Desktop App".
+
+The project includes a web app manifest, 192x192 and 512x512 app icons, and a minimal service worker for PWA installation. The service worker does not cache or modify business data.
+
+Deploy the ZIP to Railway over HTTPS. Open the website in Chrome or Edge, click the three-dot menu beside Edit, and choose Install Multi Plaza Desktop App. If the browser does not show its native install prompt, the menu item displays browser-specific manual install instructions.

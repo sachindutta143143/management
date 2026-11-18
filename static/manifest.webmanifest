@@ -1,16 +1,25 @@
 {
   "id": "/",
-  "name": "Multi Plaza Management",
+  "name": "M/S. Multi Plaza \u2014 Management",
   "short_name": "Multi Plaza",
-  "description": "Multi Plaza business management: products, credit/supply, others, quotation and customers.",
+  "description": "Multi Plaza business management and product price list",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "any",
-  "background_color": "#edf3f8",
-  "theme_color": "#123e66",
+  "background_color": "#ffffff",
+  "theme_color": "#174879",
   "icons": [
-    {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
-    {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"}
+    {
+      "src": "/static/multi-plaza-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/multi-plaza-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
   ]
 }
