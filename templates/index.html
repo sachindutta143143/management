@@ -13,13 +13,17 @@
   function backupDue(){const last=Number(localStorage.getItem(KEY)||0);return !last||Date.now()-last>=DAY;}
   function downloadBackup(){
     if(!navigator.onLine){alert('Internet connection is required to download the complete server backup.');return;}
-    fetch('/api/backup/export').then(r=>{if(!r.ok)throw new Error('Backup request failed');return r.blob();})
-      .then(blob=>{
+    fetch('/api/backup/export').then(r=>{if(!r.ok)throw new Error('Backup request failed');return r.json();})
+      .then(data=>{
+        const browserData={};
+        for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&(k.startsWith('multi_plaza_')||k.startsWith('mp_installment_')))browserData[k]=localStorage.getItem(k);}
+        data.browser_local_storage_backup=browserData;
+        const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8'});
         const url=URL.createObjectURL(blob),a=document.createElement('a');
         a.href=url;a.download='Multi-Plaza-Complete-Backup-'+new Date().toISOString().slice(0,10)+'.json';
         document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
         localStorage.setItem(KEY,String(Date.now()));
-        alert('Complete database backup downloaded successfully.');
+        alert('Complete database + browser local data backup download started.');
       }).catch(()=>alert('Backup download failed. Please check your connection and try again.'));
   }
   window.MultiPlazaDownloadBackup=downloadBackup;

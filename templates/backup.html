@@ -29,6 +29,16 @@ button{border:0;border-radius:7px;padding:12px 16px;background:#1769b2;color:whi
 <script>
 const KEY='multi_plaza_last_backup_at_v1';
 function updateStatus(){const n=Number(localStorage.getItem(KEY)||0);document.getElementById('status').textContent=n?'Last backup downloaded: '+new Date(n).toLocaleString():'No backup download recorded on this browser yet.';}
-async function download(){const b=document.getElementById('download'),s=document.getElementById('status');b.disabled=true;b.textContent='Preparing backup…';try{if(!navigator.onLine)throw Error('Internet connection is required.');const r=await fetch('/api/backup/export');if(!r.ok)throw Error('Server could not create the backup.');const blob=await r.blob();const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='Multi-Plaza-Complete-Backup-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1500);localStorage.setItem(KEY,String(Date.now()));s.textContent='Backup download started successfully. '+new Date().toLocaleString();}catch(e){s.textContent='Backup failed: '+e.message;}finally{b.disabled=false;b.textContent='⬇ Download Complete Backup';updateStatus();}}
+async function download(){const b=document.getElementById('download'),s=document.getElementById('status');b.disabled=true;b.textContent='Preparing backup…';try{if(!navigator.onLine)throw Error('Internet connection is required.');const r=await fetch('/api/backup/export');if(!r.ok)throw Error('Server could not create the backup.');const serverData=await r.json();
+const browserData={};
+for(let i=0;i<localStorage.length;i++){
+  const k=localStorage.key(i);
+  if(k && (k.startsWith('multi_plaza_') || k.startsWith('mp_installment_') || k==='mp_installment_notified_'+new Date().toISOString().slice(0,10))){
+    browserData[k]=localStorage.getItem(k);
+  }
+}
+serverData.browser_local_storage_backup=browserData;
+const blob=new Blob([JSON.stringify(serverData,null,2)],{type:'application/json;charset=utf-8'});
+const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='Multi-Plaza-Complete-Backup-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1500);localStorage.setItem(KEY,String(Date.now()));s.textContent='Complete backup (database + browser local data) download started successfully. '+new Date().toLocaleString();}catch(e){s.textContent='Backup failed: '+e.message;}finally{b.disabled=false;b.textContent='⬇ Download Complete Backup';updateStatus();}}
 document.getElementById('download').addEventListener('click',download);updateStatus();
 </script></body></html>

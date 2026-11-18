@@ -194,9 +194,49 @@ function openPayment(id){paymentId=id;paymentEditIndex=null;let c=records.find(x
 function savePayment(){let c=records.find(x=>x.id===paymentId),amount=Number($('payAmount').value);if(!c||!Number.isFinite(amount)||amount<=0){alert('Please enter a valid payment amount.');return}let old=paymentEditIndex===null?null:c.payments[paymentEditIndex];let available=balance(c)+(old?num(old.amount):0);if(amount>available+0.009){alert('Payment amount cannot exceed the outstanding balance. Maximum allowed: '+money(available));return}let entry={date:$('payDate').value||today(),amount,remark:$('payRemark').value.trim()};if(old&&old.kind)entry.kind=old.kind;if(paymentEditIndex===null)c.payments.push(entry);else c.payments[paymentEditIndex]=entry;allocate(c);persist();hide('paymentModal');$('payFullBalance').style.display='inline-block';render()}
 function editPayment(id,j){let c=records.find(x=>x.id===id),p=c.payments[j];paymentId=id;paymentEditIndex=j;$('paymentHeading').textContent=p.kind==='advance'?'Edit Advance Payment':'Edit Payment Entry';$('paymentCustomer').textContent=c.name+' · Update payment details';$('payDate').value=p.date||today();$('payAmount').value=p.amount;$('payRemark').value=p.remark||'';$('payFullBalance').style.display='none';show('paymentModal')}
 function whatsapp(c){if(!c.mobile){alert("Please enter the customer's mobile number first.");return}let phone=c.mobile.replace(/\D/g,'');if(phone.length===10)phone='91'+phone;let plan=(c.plan||[]).map((p,i)=>{let rem=Math.max(0,num(p.amount)-num(p.covered));return `${i+1}. ${dateLabel(p.date)} — ${money(p.amount)} | Paid: ${money(p.covered)} | Due: ${money(rem)}`}).join('\n');let history=(c.payments||[]).map(p=>`${dateLabel(p.date)}: ${money(p.amount)}${p.kind==='advance'?' (Advance)':p.remark?' ('+p.remark+')':''}`).join('\n');let msg=`Dear ${c.name},\n\nMachine: ${c.item}\nTotal Amount: ${money(c.total)}\nAdvance Received: ${money(advanceReceived(c))}\nTotal Received: ${money(received(c))}\nBalance Due: ${money(balance(c))}\n\nINSTALLMENT SCHEDULE:\n${plan||'No installment schedule has been added'}\n\nPAYMENT RECEIVED:\n${history||'No payments have been recorded yet'}\n\nPlease pay the outstanding amount according to the schedule.\n\nIf you have already made the payment, please ignore this message.\n\nThis is a system-generated message.\n\nThank you,\nMulti Plaza`;window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank')}
-function requestReminder(){if(!('Notification'in window)){alert('This browser does not support notifications.');return}Notification.requestPermission().then(p=>{if(p==='granted'){notifyDue(true);alert('Reminder permission enabled. Keep this register open for browser reminders.')}else alert('Notification permission was not granted.')})}
-function notifyDue(force=false){if(!('Notification'in window)||Notification.permission!=='granted')return;let a=reminderRows();if(!a.length)return;let key='mp_installment_notified_'+today();if(!force&&localStorage.getItem(key))return;new Notification('Multi Plaza — Installment Due',{body:a.slice(0,4).map(x=>`${x.c.name}: ${money(x.left)} due ${dateLabel(x.p.date)}`).join(' | ')});localStorage.setItem(key,'1')}
-function exportCSV(){let out=[['Customer','Mobile','Machine','Total Amount','Installment No.','Due Date','Scheduled Amount','Paid Against Plan','Actual Payment Date','Payment Amount','Remarks']];records.forEach(c=>{if(!c.plan.length&&!c.payments.length)out.push([c.name,c.mobile,c.item,c.total,'','','','','','','']);(c.plan||[]).forEach((p,i)=>{let hist=i===0?(c.payments||[]):[];if(!hist.length)out.push([c.name,c.mobile,c.item,c.total,i+1,p.date,p.amount,p.covered,'','','']);else hist.forEach(h=>out.push([c.name,c.mobile,c.item,c.total,i+1,p.date,p.amount,p.covered,h.date,h.amount,h.remark]))})});let csv='\ufeff'+out.map(r=>r.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(',')).join('\r\n');let a=document.createElement('a'),u=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.href=u;a.download='Multi_Plaza_Installment_Register.csv';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
+function dueWithin24Hours(){
+  const now=new Date(),end=new Date(now.getTime()+24*60*60*1000);
+  const todayISO=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  const endISO=end.getFullYear()+'-'+String(end.getMonth()+1).padStart(2,'0')+'-'+String(end.getDate()).padStart(2,'0');
+  return reminderRows().filter(x=>x.p.date<=endISO && x.left>0);
+}
+function showDuePopup(force=false){
+  const items=dueWithin24Hours();if(!items.length)return;
+  const key='mp_installment_popup_'+today();
+  if(!force&&localStorage.getItem(key))return;
+  if(document.getElementById('mpInstallmentDuePopup'))return;
+  const wrap=document.createElement('div');wrap.id='mpInstallmentDuePopup';
+  wrap.style='position:fixed;inset:0;background:#0008;z-index:999999;display:flex;align-items:center;justify-content:center;padding:14px;font-family:Arial';
+  const rows=items.slice(0,8).map(x=>`<div style="padding:8px 0;border-bottom:1px solid #e2e8f0"><b>${esc(x.c.name)}</b> — ${money(x.left)} — ${dateLabel(x.p.date)} ${x.late?'(OVERDUE)':'(DUE SOON)'}</div>`).join('');
+  wrap.innerHTML=`<div style="background:white;color:#172033;max-width:460px;width:100%;max-height:80vh;overflow:auto;padding:20px;border-radius:12px;box-shadow:0 8px 35px #0005"><h2 style="margin:0 0 8px;color:#174879">Installment Due Reminder</h2><p>These payments are overdue or due within the next 24 hours.</p>${rows}<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button id="mpDueClose" class="primary">Close</button><button id="mpDueEnable">Enable Browser Notification</button></div></div>`;
+  document.body.appendChild(wrap);
+  document.getElementById('mpDueClose').onclick=()=>{localStorage.setItem(key,'1');wrap.remove();};
+  document.getElementById('mpDueEnable').onclick=()=>{wrap.remove();requestReminder();};
+}
+function requestReminder(){
+  if(!('Notification'in window)){alert('This browser does not support browser notifications. The on-page reminder will still work when this register is open.');return;}
+  Notification.requestPermission().then(p=>{if(p==='granted'){notifyDue(true);alert('Browser notifications enabled. Keep the website open for scheduled checks.');}else alert('Notification permission was not granted. Please allow notifications for this website in browser settings.');});
+}
+function notifyDue(force=false){
+  if(!('Notification'in window)||Notification.permission!=='granted')return;
+  const items=dueWithin24Hours();if(!items.length)return;
+  const key='mp_installment_notified_'+today();if(!force&&localStorage.getItem(key))return;
+  new Notification('Multi Plaza — Installment Due',{body:items.slice(0,4).map(x=>`${x.c.name}: ${money(x.left)} due ${dateLabel(x.p.date)}`).join(' | ')});
+  localStorage.setItem(key,'1');
+}
+function exportCSV(){
+  const out=[['Record Type','Customer','Mobile','Machine / Item','Total Amount','Installment No.','Due Date','Scheduled Amount','Paid Against Plan','Actual Payment Date','Payment Amount','Payment Remarks','Current Balance']];
+  records.forEach(c=>{
+    const plans=Array.isArray(c.plan)?c.plan:[];
+    const payments=Array.isArray(c.payments)?c.payments:[];
+    if(!plans.length&&!payments.length)out.push(['CUSTOMER',c.name,c.mobile||'',c.item||'',c.total||0,'','','','','','','',balance(c)]);
+    plans.forEach((p,i)=>out.push(['SCHEDULE',c.name,c.mobile||'',c.item||'',c.total||0,i+1,p.date||'',num(p.amount),num(p.covered),'','','',balance(c)]));
+    payments.forEach((h,i)=>out.push(['PAYMENT',c.name,c.mobile||'',c.item||'',c.total||0,'','','','',''+(h.date||''),num(h.amount),h.remark||'',balance(c)]));
+  });
+  const csv='\ufeff'+out.map(r=>r.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(',')).join('\r\n');
+  const a=document.createElement('a'),u=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.href=u;a.download='Multi_Plaza_Installment_Register_Full_Export.csv';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);
+}
 $('addCustomer').onclick=()=>openCustomer();$('saveCustomer').onclick=saveCustomer;$('search').oninput=render;$('export').onclick=exportCSV;$('reminderPermission').onclick=requestReminder;
 $('fCount').onchange=buildPlan;$('fFirstDate').onchange=buildPlan;
 $('fTotal').oninput=()=>{if(!editId)buildPlan();else updatePlanTotal()};
@@ -206,27 +246,41 @@ $('savePayment').onclick=savePayment;$('payFullBalance').onclick=()=>{let c=reco
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>{hide(b.dataset.close);if(b.dataset.close==='paymentModal')$('payFullBalance').style.display='inline-block'});
 ['customerModal','paymentModal'].forEach(id=>$(id).addEventListener('click',e=>{if(e.target===$(id))hide(id)}));
 async function initialise(){
-  let loadedFromServer=false;
+  let serverLoaded=false, serverHadRecords=false, localRecords=[];
+  // Read browser copies first so an empty server response cannot hide older local entries.
   try{
-    const response=await fetch('/api/data/installment_register');
+    const saved=localStorage.getItem(KEY);
+    if(saved){const parsed=JSON.parse(saved);if(Array.isArray(parsed))localRecords=parsed;}
+    if(!localRecords.length){
+      const old=localStorage.getItem('multi_plaza_installment_flexible_v2');
+      if(old){const parsed=JSON.parse(old);if(Array.isArray(parsed))localRecords=parsed.map(c=>({...c,id:c.id||'cust_'+Date.now()+Math.random(),payments:c.payments||[],plan:(c.plan||c.schedule||[]).map(s=>({...s,covered:s.covered||s.paid||0}))}));}
+    }
+  }catch(e){console.warn('Could not read local installment backup',e);}
+  try{
+    const response=await fetch('/api/data/installment_register',{cache:'no-store'});
     if(!response.ok)throw new Error('Database unavailable');
     const serverData=await response.json();
-    if(Array.isArray(serverData)){records=serverData;loadedFromServer=true;}
-  }catch(e){}
-  if(!loadedFromServer){
-    try{
-      let saved=localStorage.getItem(KEY);
-      if(saved)records=JSON.parse(saved);
-      else{
-        let old=localStorage.getItem('multi_plaza_installment_flexible_v2');
-        if(old){records=JSON.parse(old);records=records.map(c=>({...c,id:c.id||'cust_'+Date.now()+Math.random(),payments:c.payments||[],plan:(c.schedule||[]).map(s=>({...s,covered:s.paid||0}))}));}
-      }
-    }catch(e){records=[]}
-  }
+    if(Array.isArray(serverData)){
+      serverLoaded=true;
+      serverHadRecords=serverData.length>0;
+      // Non-empty PostgreSQL is authoritative. If it is empty, recover local records if available.
+      records=serverHadRecords?serverData:localRecords;
+    }
+  }catch(e){console.warn('Installment database load failed; using local backup',e);}
+  if(!serverLoaded)records=localRecords;
   if(!Array.isArray(records))records=[];
   records=records.map(c=>({...c,id:c.id||'cust_'+Math.random(),payments:Array.isArray(c.payments)?c.payments:[],plan:Array.isArray(c.plan)?c.plan:[]}));
   records.forEach(allocate);render();
-  if(!loadedFromServer)persist();else $('saveState').textContent='Loaded from database';
+  if(serverLoaded&&!serverHadRecords&&records.length){
+    $('saveState').textContent='Recovering local records to database…';
+    persist();
+  }else if(!serverLoaded||!serverHadRecords){
+    if(records.length)persist();else $('saveState').textContent='No saved installment records found';
+  }else{
+    // Keep the browser backup refreshed from the authoritative database copy.
+    try{localStorage.setItem(KEY,JSON.stringify(records));}catch(e){}
+    $('saveState').textContent='Loaded from database';
+  }
 }
 // Flush pending changes to PostgreSQL when leaving this section.
 function flushInstallments(){
@@ -238,8 +292,8 @@ function flushInstallments(){
 }
 window.addEventListener('pagehide',flushInstallments);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushInstallments();});
-initialise();
-if('Notification'in window&&Notification.permission==='granted'){notifyDue();setInterval(()=>notifyDue(),60*60*1000)}
+initialise().then(()=>{showDuePopup();if('Notification'in window&&Notification.permission==='granted')notifyDue();});
+setInterval(()=>{showDuePopup();if('Notification'in window&&Notification.permission==='granted')notifyDue();},60*60*1000);
 })();
 </script>
 </body></html>

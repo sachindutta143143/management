@@ -1,0 +1,33 @@
+MULTI PLAZA - INSTALLMENT / BACKUP / REMINDER FIX
+
+1. Credit and Supply continue to use ONE PostgreSQL table: credit_supply_register.
+   The old /api/data/credit_register and /api/data/supply_register URLs are aliases
+   that read/write separate arrays inside the same combined row. No separate new
+   Supply table is created by this application code.
+
+2. Installment Register:
+   - A non-empty PostgreSQL installment_register record remains authoritative.
+   - If PostgreSQL returns an empty array, the page checks existing browser local
+     storage keys and restores those records to PostgreSQL instead of replacing
+     them with an empty list.
+   - CSV export now includes every customer, installment schedule row, and
+     individual payment history row.
+
+3. Complete backup:
+   - The JSON backup includes server-side PostgreSQL data and browser localStorage
+     entries whose names begin with multi_plaza_ or mp_installment_.
+   - Download it from Data Backup or Download All Data.
+
+4. 24-hour reminders:
+   - The homepage displays a backup reminder after 24 hours without a recorded
+     backup download.
+   - Installment Register displays an in-page reminder for overdue payments or
+     payments due within the next 24 hours.
+   - Browser notifications require the user to click Enable My Reminder and allow
+     notifications in the browser.
+   - Browser notifications can only be checked while the website/register is
+     open unless a separate push-notification service is configured.
+
+5. DATA SAFETY:
+   - No DROP TABLE, TRUNCATE, db.drop_all(), or deletion of old records has been
+     added. Keep existing PostgreSQL tables and backups until all data is verified.
