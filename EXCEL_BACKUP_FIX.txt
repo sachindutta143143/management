@@ -1,18 +1,19 @@
-MULTI PLAZA — COMPLETE EXCEL BACKUP
+MULTI PLAZA — COMPLETE EXCEL BACKUP FIX
 
-The Data Backup page now downloads one .xlsx workbook instead of a JSON/CSV file.
-Workbook sheets include:
-- Backup Summary
-- Product List (parsed from the saved product HTML tables)
-- Product HTML Backup (full source retained in chunks)
-- Credit Register and Supply Register (exported separately for viewing, sourced from the same combined credit_supply_register table)
-- Installment Customers, Installment Schedule, Installment Payments
-- Others Register, Quotation Settings, Quotation Content, Customers
-- Legacy App Data, Browser Backup, Full Data Snapshot
+The Data Backup page downloads one .xlsx workbook.
 
-The workbook includes server-side PostgreSQL data and browser local-storage copies.
-Product browser copies are preferred when present so unsynced browser edits are not missed.
-Installment browser data is used as fallback only if the server installment list is empty.
+Product List:
+- One product per row.
+- Dedicated DP Price column.
+- DP Price values are read from saved product HTML cells marked dp-price-cell.
+- Product HTML is also preserved in Product HTML Backup and Full Data Snapshot.
+- Blank DP Price cells remain blank if no DP value was saved; values are never guessed.
 
-No database tables or business records are deleted or cleared by this backup feature.
-The existing JSON API endpoint remains available for compatibility; the Data Backup button downloads Excel.
+Registers:
+- Credit Register and Supply Register are separate worksheets, sourced from the same combined credit_supply_register database table.
+- Installment Register is ONE worksheet containing customer details, every installment schedule row, and all payment history columns.
+- Others Register, Customers, Quotation Settings, Quotation Content, Legacy App Data, Browser Backup and Full Data Snapshot are retained.
+
+Browser-saved product data is preferred when present so unsynced edits are not missed.
+The backup endpoint is read-only. No database tables or business records are deleted, cleared, or modified.
+The existing JSON API endpoint remains available for compatibility.

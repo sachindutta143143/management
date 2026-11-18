@@ -339,24 +339,81 @@ def backup_export():
 
 
 class ProductTableParser(HTMLParser):
-    """Extract visible product tables from the saved product-list HTML."""
+    """Parse product tables while retaining cell classes (especially DP Price)."""
     def __init__(self):
-        super().__init__(); self.tables=[]; self.rows=[]; self.row=None; self.cell=None; self.in_cell=False
+        super().__init__()
+        self.tables = []
+        self.rows = None
+        self.row = None
+        self.cell_text = None
+        self.cell_class = ""
+
     def handle_starttag(self, tag, attrs):
-        if tag == "table": self.rows=[]
-        elif tag == "tr" and self.rows is not None: self.row=[]
-        elif tag in ("td", "th") and self.row is not None: self.cell=[]; self.in_cell=True
+        attrs = dict(attrs)
+        if tag == "table":
+            self.rows = []
+        elif tag == "tr" and self.rows is not None:
+            self.row = []
+        elif tag in ("td", "th") and self.row is not None:
+            self.cell_text = []
+            self.cell_class = " ".join(attrs.get("class", "").split())
+
     def handle_data(self, data):
-        if self.in_cell and self.cell is not None: self.cell.append(data)
+        if self.cell_text is not None:
+            self.cell_text.append(data)
+
     def handle_endtag(self, tag):
-        if tag in ("td", "th") and self.in_cell:
-            self.row.append(" ".join("".join(self.cell).split())); self.cell=None; self.in_cell=False
+        if tag in ("td", "th") and self.cell_text is not None:
+            value = " ".join("".join(self.cell_text).split())
+            self.row.append({"text": value, "class": self.cell_class})
+            self.cell_text = None
+            self.cell_class = ""
         elif tag == "tr" and self.row is not None:
-            if any(v.strip() for v in self.row): self.rows.append(self.row)
-            self.row=None
+            if any(cell.get("text", "").strip() for cell in self.row):
+                self.rows.append(self.row)
+            self.row = None
         elif tag == "table" and self.rows is not None:
-            if self.rows: self.tables.append(self.rows)
-            self.rows=None
+            if self.rows:
+                self.tables.append(self.rows)
+            self.rows = None
+
+
+def _product_excel_rows(html):
+    """Return flat product rows with a dedicated DP Price column."""
+    parser = ProductTableParser()
+    parser.feed(str(html or ""))
+    headers = ["Product Section", "Model / Company", "Price", "Specification 1",
+               "Specification 2", "Print Speed 1", "Print Speed 2", "Other Details", "DP Price"]
+    output = []
+    for table_no, table in enumerate(parser.tables, 1):
+        if not table:
+            continue
+        header_cells = table[0]
+        raw_headers = [c.get("text", "") for c in header_cells]
+        # Tables without a clear header are still retained as data.
+        has_header = any("model" in h.lower() or "price" in h.lower() for h in raw_headers)
+        data_rows = table[1:] if has_header else table
+        for row in data_rows:
+            values = [c.get("text", "") for c in row]
+            dp_index = next((i for i, c in enumerate(row)
+                             if "dp-price-cell" in c.get("class", "").split()
+                             or (i < len(raw_headers) and "dp price" in raw_headers[i].lower())), None)
+            dp_value = values[dp_index] if dp_index is not None and dp_index < len(values) else ""
+            normal = [v for i, v in enumerate(values) if i != dp_index]
+            if not any(normal) and not dp_value:
+                continue
+            # Keep the source table's column order and labels, including repeated headings.
+            labels = [h or f"Field {i+1}" for i, h in enumerate(raw_headers)]
+            if has_header and dp_index is not None and dp_index < len(labels):
+                labels.pop(dp_index)
+            # Canonical columns make the workbook consistent across product categories.
+            row_out = [f"Product Table {table_no}"]
+            for i in range(6):
+                row_out.append(normal[i] if i < len(normal) else "")
+            row_out.append(" | ".join(normal[6:]) if len(normal) > 6 else "")
+            row_out.append(dp_value)
+            output.append(row_out)
+    return headers, output
 
 
 def _as_list(value):
@@ -441,27 +498,38 @@ def backup_excel():
     _write_sheet(wb,"Credit Register",_as_list(cs.get("credit",[])))
     _write_sheet(wb,"Supply Register",_as_list(cs.get("supply",[])))
     installments=_as_list(data.get("installment_register"))
-    _write_sheet(wb,"Installment Customers",[{k:v for k,v in c.items() if k not in ("plan","payments")} for c in installments if isinstance(c,dict)])
-    schedules=[]; payments=[]
+    # Keep customer, schedule and all payment history together in ONE worksheet.
+    payment_count=max([len(_as_list(c.get("payments"))) for c in installments if isinstance(c,dict)] or [0])
+    installment_headers=["Customer","Mobile / WhatsApp","Machine / Item","Total Machine Amount",
+        "Total Received","Balance Due","Plan No.","Due Date","Planned Amount","Paid Against Plan","Plan Balance"]
+    for pi in range(1,payment_count+1):
+        installment_headers += [f"Payment {pi} Amount",f"Payment {pi} Date",f"Payment {pi} Type",f"Payment {pi} Remark"]
+    installment_rows=[]
     for c in installments:
         if not isinstance(c,dict): continue
-        for i,plan in enumerate(_as_list(c.get("plan"))): schedules.append({"Customer":c.get("name",""),"Mobile":c.get("mobile",""),"Item":c.get("item",""),"Total":c.get("total",""),"Schedule No.":i+1,**(plan if isinstance(plan,dict) else {"Schedule":plan})})
-        for i,pay in enumerate(_as_list(c.get("payments"))): payments.append({"Customer":c.get("name",""),"Mobile":c.get("mobile",""),"Item":c.get("item",""),"Payment No.":i+1,**(pay if isinstance(pay,dict) else {"Payment":pay})})
-    _write_sheet(wb,"Installment Schedule",schedules)
-    _write_sheet(wb,"Installment Payments",payments)
+        plans=_as_list(c.get("plan")) or [{}]
+        payments=_as_list(c.get("payments"))
+        total=float(c.get("total") or 0)
+        received=sum(float(p.get("amount") or 0) for p in payments if isinstance(p,dict))
+        for plan_no,plan in enumerate(plans,1):
+            plan=plan if isinstance(plan,dict) else {}
+            row=[c.get("name",""),c.get("mobile",""),c.get("item",""),c.get("total",""),
+                received,total-received,plan_no,plan.get("date",""),plan.get("amount",""),
+                plan.get("covered",""),float(plan.get("amount") or 0)-float(plan.get("covered") or 0)]
+            for pay in payments:
+                pay=pay if isinstance(pay,dict) else {}
+                row += [pay.get("amount",""),pay.get("date",""),pay.get("kind",""),pay.get("remark","")]
+            row += [""]*(len(installment_headers)-len(row))
+            installment_rows.append(row)
+    _write_sheet(wb,"Installment Register",installment_rows,headers=installment_headers)
     _write_sheet(wb,"Others Register",_as_list(data.get("others_register")))
     customers=[customer_json(c) for c in Customer.query.order_by(Customer.name).all()]
     if not customers: customers=_as_list(browser.get("customers"))
     _write_sheet(wb,"Customers",customers)
 
-    # Product list: export every product table and preserve the full editable HTML in backup chunks.
-    parser=ProductTableParser(); parser.feed(str(product_payload.get("content") or ""))
-    product_rows=[]
-    for ti,table in enumerate(parser.tables,1):
-        heading=f"Product Table {ti}"
-        product_rows.append([heading,"",""])
-        for row in table: product_rows.append(row)
-    _write_sheet(wb,"Product List",product_rows or [["No product table could be parsed; see Product HTML Backup"]])
+    # Product list: export one product per row and preserve DP Price values separately.
+    product_headers, product_rows = _product_excel_rows(product_payload.get("content") or "")
+    _write_sheet(wb,"Product List",product_rows or [["No product table could be parsed","","","","","","","",""]],headers=product_headers)
     html_text="\n--- HEADER HTML ---\n"+str(product_payload.get("header") or "")+"\n--- PRODUCT CONTENT HTML ---\n"+str(product_payload.get("content") or "")
     chunks=[html_text[i:i+30000] for i in range(0,len(html_text),30000)] or [""]
     _write_sheet(wb,"Product HTML Backup",[{"Part":i+1,"HTML Source":chunk} for i,chunk in enumerate(chunks)])
