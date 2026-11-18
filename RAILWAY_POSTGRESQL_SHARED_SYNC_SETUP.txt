@@ -1,0 +1,41 @@
+MULTI PLAZA — RAILWAY POSTGRESQL + DESKTOP/MOBILE SHARED DATA
+
+IMPORTANT ARCHITECTURE
+- Railway PostgreSQL is the one shared database for every desktop/mobile browser.
+- The Flask app reads DATABASE_URL from its Railway service environment.
+- On Railway, the app now refuses to start if DATABASE_URL is missing. It will not silently create a separate SQLite database.
+- SQLite remains available only for local development outside Railway.
+
+RAILWAY CONNECTION STEPS
+1. Open the Railway project containing Multi Plaza.
+2. Confirm a PostgreSQL service exists and is running. Do not delete/recreate it.
+3. Open the Multi Plaza app service -> Variables.
+4. Add a reference variable named DATABASE_URL whose value references the PostgreSQL service's DATABASE_URL (use Railway's variable reference picker; select the PostgreSQL service's DATABASE_URL).
+5. Save variables and redeploy the app service.
+6. Do not paste database passwords into source code, GitHub, screenshots, or chat.
+
+VERIFY CONNECTION AFTER DEPLOY
+- Open: https://YOUR-APP-DOMAIN/health
+  Expected JSON includes status=ok, database=connected, backend=postgresql, railway_postgres=true.
+- Open: https://YOUR-APP-DOMAIN/api/database/status
+  Expected JSON shows all module tables true, including credit_supply_register, product_list, installment_register, others_register, quotation_data, customers, app_data.
+- If backend says sqlite or railway_postgres is not true, STOP: do not use the app for editing until DATABASE_URL is corrected.
+
+DESKTOP + MOBILE SYNC TEST
+1. Open the same deployed HTTPS domain on desktop and mobile. Do not use a different Railway deployment/domain.
+2. On desktop, add a harmless test row in Credit Register and save.
+3. Refresh Credit Register on mobile. Confirm the same row appears.
+4. Edit that test row on mobile and save.
+5. Refresh desktop. Confirm the edit appears.
+6. Remove only the test row manually after confirming sync, if desired.
+
+LOCAL BROWSER DATA RECOVERY
+- Browser localStorage is device/browser-profile-specific. One device cannot read another device's localStorage.
+- Open the updated deployed app on each old device/browser that contains unsynced local records, while signed into/connected to the same app. The recovery logic uploads browser-only data only when the corresponding shared PostgreSQL table is empty.
+- If PostgreSQL already contains records, it remains authoritative; local drafts are not automatically merged to avoid duplicate/overwriting records.
+- For any device containing important unsynced data while PostgreSQL is already non-empty, export/backup that device's records first and reconcile separately. Do not clear browser storage.
+
+DATA SAFETY
+- This update adds connection checks and recovery behavior only.
+- It does not DROP or TRUNCATE tables, delete rows, remove backups, or overwrite a non-empty module table during startup recovery.
+- Keep an independent backup before deployment.

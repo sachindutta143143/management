@@ -1,0 +1,16 @@
+SHARED DATABASE / DEVICE DATA RECOVERY FIX
+
+Problem addressed:
+- Records that were saved only in one browser's localStorage did not automatically appear on another phone/desktop.
+- Some older legacy app_data records were not copied when the new destination table already existed but was empty.
+
+Changes:
+1. Startup migration copies legacy module data into a destination only when the destination is empty. Existing non-empty records are never replaced.
+2. Credit Register checks the shared PostgreSQL table. If it is empty and this browser has saved Credit rows, it uploads those rows to the shared database. If PostgreSQL has records, PostgreSQL remains authoritative.
+3. Product List uploads this browser's saved product HTML to PostgreSQL only when the shared product list is empty.
+4. Others Register and Quotation similarly restore local browser drafts only when the shared table is empty.
+5. Installment Register already had local-to-server recovery and remains intact.
+6. No DROP, TRUNCATE, DELETE, table clearing, or backup deletion was added.
+
+Important recovery limitation:
+Browser localStorage is private to each device/browser profile. Data that exists only on an old phone/desktop must be opened on that same device/browser after deploying this update so it can be uploaded to PostgreSQL. It cannot be fetched remotely from a different device automatically.

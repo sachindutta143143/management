@@ -238,6 +238,15 @@ async function loadLocal(){
   if(r.ok){
    const d=await r.json();
    if(d && d.content){document.getElementById('content').innerHTML=d.content; if(d.header)document.querySelector('header').innerHTML=d.header; return;}
+   // Empty shared DB: restore this browser's saved catalogue to PostgreSQL.
+   const localContent=localStorage.getItem('multiPlazaPriceList');
+   const localHeader=localStorage.getItem('multiPlazaHeader');
+   if(localContent){
+     document.getElementById('content').innerHTML=localContent;
+     if(localHeader)document.querySelector('header').innerHTML=localHeader;
+     await fetch('/api/data/product_list',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:localContent,header:localHeader||''})});
+     return;
+   }
   }
  }catch(e){}
  let c=localStorage.getItem('multiPlazaPriceList'),h=localStorage.getItem('multiPlazaHeader');

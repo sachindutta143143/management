@@ -1433,11 +1433,18 @@
       const response = await fetch("/api/data/credit_register");
       if (!response.ok) return;
       const saved = await response.json();
-      if (Array.isArray(saved) && saved.length) {
+      if (Array.isArray(saved) && saved.length && saved.some(hasData)) {
         rows = saved.map(row => ({ ...emptyRow(), ...row }));
         renderTable();
         updateSummary();
         localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+      } else if (rows.some(hasData)) {
+        // Recover records saved on this browser to the shared PostgreSQL database.
+        const recovered = await fetch("/api/data/credit_register", {
+          method: "PUT", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(rows)
+        });
+        if (recovered.ok) $("message").textContent = "Older browser records recovered to shared database.";
       }
     } catch (error) {}
   })();

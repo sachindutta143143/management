@@ -27,6 +27,6 @@ function flushOthers(){
 }
 window.addEventListener('pagehide',flushOthers);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushOthers();});
-async function load(){try{let r=await fetch('/api/data/others_register');if(r.ok){let d=await r.json();if(Array.isArray(d))data=d.map(row)}}catch(e){}if(!data.length){try{let draft=JSON.parse(localStorage.getItem('mp_others_draft')||'null');if(Array.isArray(draft))data=draft.map(row)}catch(e){}}if(!data.length)data=[row()];render()}
+async function load(){let serverHas=false;try{let r=await fetch('/api/data/others_register');if(r.ok){let d=await r.json();if(Array.isArray(d)&&d.length){data=d.map(row);serverHas=true;}}}catch(e){}if(!serverHas){try{let draft=JSON.parse(localStorage.getItem('mp_others_draft')||'null');if(Array.isArray(draft)&&draft.length){data=draft.map(row);await fetch('/api/data/others_register',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});}}catch(e){}}if(!data.length)data=[row()];render()}
 document.getElementById('add').onclick=()=>{data.push(row());render();save()};document.getElementById('save').onclick=save;load();
 </script></body></html>

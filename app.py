@@ -21,7 +21,16 @@ if database_url.startswith("postgres://"):
 elif database_url.startswith("postgresql://"):
     database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
 
-# Local SQLite is only a development fallback. Railway should use PostgreSQL.
+# Railway must use the attached PostgreSQL service. Never silently fall back to
+# a per-container SQLite file in production, because that would split desktop/mobile data.
+is_railway = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID"))
+if is_railway and not database_url:
+    raise RuntimeError(
+        "DATABASE_URL is missing on Railway. Add the PostgreSQL service DATABASE_URL "
+        "reference to this app service's Variables before deploying."
+    )
+
+# SQLite is allowed only for local development outside Railway.
 app.config["SQLALCHEMY_DATABASE_URI"] = database_url or f"sqlite:///{BASE_DIR / 'local_dev.db'}"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True, "pool_recycle": 300}
@@ -90,8 +99,13 @@ with app.app_context():
     # Migrate the other modules from the legacy key/value table when needed.
     for section_key, model in SECTION_MODELS.items():
         legacy = AppData.query.filter_by(data_key=section_key).first()
-        if legacy is not None and db.session.get(model, 1) is None:
-            db.session.add(model(id=1, payload=legacy.payload))
+        current = db.session.get(model, 1)
+        if legacy is not None:
+            if current is None:
+                db.session.add(model(id=1, payload=legacy.payload))
+            elif current.payload in (None, [], {}) and legacy.payload not in (None, [], {}):
+                # Safe recovery: populate only an empty destination; never replace live data.
+                current.payload = legacy.payload
 
     combined = db.session.get(CreditSupplyRegisterData, 1)
     if combined is None:
@@ -122,6 +136,20 @@ with app.app_context():
             },
         )
         db.session.add(combined)
+    else:
+        # Recover legacy Credit/Supply records if the combined table exists but is empty.
+        current_payload = combined.payload or {"credit": [], "supply": []}
+        if not isinstance(current_payload, dict):
+            current_payload = {"credit": [], "supply": []}
+        if not current_payload.get("credit"):
+            old_credit = AppData.query.filter_by(data_key="credit_register").first()
+            if old_credit is not None and isinstance(old_credit.payload, list) and old_credit.payload:
+                current_payload["credit"] = old_credit.payload
+        if not current_payload.get("supply"):
+            old_supply = AppData.query.filter_by(data_key="supply_register").first()
+            if old_supply is not None and isinstance(old_supply.payload, list) and old_supply.payload:
+                current_payload["supply"] = old_supply.payload
+        combined.payload = current_payload
     db.session.commit()
 
 
@@ -608,9 +636,13 @@ def database_status():
         "customers",
         "app_data",
     ]
+    backend = db.engine.url.get_backend_name()
     return jsonify({
         "status": "ok",
         "database": "connected",
+        "backend": backend,
+        "shared_database_required": bool(is_railway),
+        "railway_postgres": (backend == "postgresql") if is_railway else None,
         "tables": {name: name in existing for name in expected},
     })
 
@@ -619,7 +651,13 @@ def database_status():
 def health():
     # This checks the actual database connection, not only whether Flask is running.
     db.session.execute(text("SELECT 1"))
-    return jsonify(status="ok", database="connected")
+    backend = db.engine.url.get_backend_name()
+    return jsonify(
+        status="ok",
+        database="connected",
+        backend=backend,
+        railway_postgres=(backend == "postgresql") if is_railway else None,
+    )
 
 
 if __name__ == "__main__":
