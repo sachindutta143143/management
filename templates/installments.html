@@ -138,8 +138,9 @@ const received=c=>(c.payments||[]).reduce((s,p)=>s+num(p.amount),0);
 const advanceReceived=c=>(c.payments||[]).filter(p=>p.kind==='advance').reduce((s,p)=>s+num(p.amount),0);
 const regularReceived=c=>(c.payments||[]).filter(p=>p.kind!=='advance').reduce((s,p)=>s+num(p.amount),0);
 const balance=c=>Math.max(0,num(c.total)-received(c));
-let saveTimer=null;
+let saveTimer=null,localWritePending=false,lastSharedSnapshot="";
 function persist(){
+  localWritePending=true;
   try{localStorage.setItem(KEY,JSON.stringify(records));}catch(e){}
   $('saveState').textContent='Saving…';
   clearTimeout(saveTimer);
@@ -147,8 +148,9 @@ function persist(){
     try{
       const r=await fetch('/api/data/installment_register',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(records)});
       if(!r.ok)throw new Error('Database save failed');
-      $('saveState').textContent='Saved to database';
-    }catch(e){$('saveState').textContent='Offline — local backup saved';}
+      $('saveState').textContent='Saved to shared database';
+      lastSharedSnapshot=JSON.stringify(records);localWritePending=false;
+    }catch(e){localWritePending=false;$('saveState').textContent='Offline — local backup saved';}
   },350);
 }
 function stats(){let t=0,p=0,b=0,pend=0;records.forEach(c=>{t+=num(c.total);p+=received(c);b+=balance(c);if(balance(c)>0)pend++});$('sumTotal').textContent=$('footTotal').textContent=money(t);$('sumPaid').textContent=$('footPaid').textContent=money(p);$('sumBalance').textContent=$('footBalance').textContent=money(b);$('sumPending').textContent=pend}
@@ -263,6 +265,7 @@ async function initialise(){
     if(Array.isArray(serverData)){
       serverLoaded=true;
       serverHadRecords=serverData.length>0;
+      lastSharedSnapshot=JSON.stringify(serverData);
       // Non-empty PostgreSQL is authoritative. If it is empty, recover local records if available.
       records=serverHadRecords?serverData:localRecords;
     }
@@ -282,6 +285,28 @@ async function initialise(){
     $('saveState').textContent='Loaded from database';
   }
 }
+// Pull changes made from other phones/desktops while this page remains open.
+// Never replace local records while a form is open or a save is still pending.
+async function refreshInstallmentsFromServer(){
+  if(document.visibilityState!=='visible'||localWritePending)return;
+  if($('customerModal').classList.contains('show')||$('paymentModal').classList.contains('show'))return;
+  try{
+    const r=await fetch('/api/data/installment_register',{cache:'no-store'});
+    if(!r.ok)return;
+    const remote=await r.json();
+    if(!Array.isArray(remote))return;
+    const snapshot=JSON.stringify(remote);
+    if(snapshot!==lastSharedSnapshot){
+      records=remote.map(c=>({...c,id:c.id||'cust_'+Math.random(),payments:Array.isArray(c.payments)?c.payments:[],plan:Array.isArray(c.plan)?c.plan:[]}));
+      records.forEach(allocate);
+      lastSharedSnapshot=snapshot;
+      try{localStorage.setItem(KEY,JSON.stringify(records));}catch(e){}
+      render();$('saveState').textContent='Updated from another device';
+    }
+  }catch(e){console.warn('Installment live sync failed',e);}
+}
+setInterval(refreshInstallmentsFromServer,4000);
+
 // Flush pending changes to PostgreSQL when leaving this section.
 function flushInstallments(){
   clearTimeout(saveTimer);

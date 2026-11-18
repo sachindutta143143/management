@@ -709,10 +709,13 @@
   }
 
   let saveTimer;
+  let localWritePending = false;
+  let lastSharedSnapshot = "";
 
   async function saveNow() {
     clearTimeout(saveTimer);
     try {
+      localWritePending = true;
       const response = await fetch("/api/data/credit_register", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -721,15 +724,19 @@
       if (!response.ok) throw new Error("Database save failed");
       $("message").textContent = "Saved to shared database.";
       localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+      lastSharedSnapshot = JSON.stringify(rows);
+      localWritePending = false;
       return true;
     } catch (error) {
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(rows)); } catch (_) {}
       $("message").textContent = "Server unavailable: saved only in this browser.";
+      localWritePending = false;
       return false;
     }
   }
 
   function scheduleSave() {
+    localWritePending = true;
     clearTimeout(saveTimer);
     saveTimer = setTimeout(saveNow, 300);
   }
@@ -1424,30 +1431,53 @@
 
   window.addEventListener("beforeunload", saveNow);
 
-  renderTable();
-})();
-
-  // Load shared PostgreSQL data after page initialization; browser data remains a fallback.
-  (async function loadSharedRegister(){
+  // Load from the shared server INSIDE this closure (rows/helpers are private here).
+  // The previous version placed this code outside the closure, so it could not
+  // access rows/hasData/renderTable and silently failed on every device.
+  async function loadSharedRegister(initial = false) {
     try {
-      const response = await fetch("/api/data/credit_register");
-      if (!response.ok) return;
+      const response = await fetch("/api/data/credit_register", { cache: "no-store" });
+      if (!response.ok) throw new Error("Shared database read failed: " + response.status);
       const saved = await response.json();
-      if (Array.isArray(saved) && saved.length && saved.some(hasData)) {
-        rows = saved.map(row => ({ ...emptyRow(), ...row }));
-        renderTable();
-        updateSummary();
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
-      } else if (rows.some(hasData)) {
-        // Recover records saved on this browser to the shared PostgreSQL database.
+      if (!Array.isArray(saved)) throw new Error("Invalid shared register response");
+      const serverHasData = saved.some(hasData);
+      const localHasData = rows.some(hasData);
+      if (serverHasData) {
+        const snapshot = JSON.stringify(saved);
+        if (initial || (!localWritePending && snapshot !== lastSharedSnapshot)) {
+          rows = saved.map(row => ({ ...emptyRow(), ...row }));
+          renderTable();
+          updateAllCalculations();
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+          lastSharedSnapshot = JSON.stringify(rows);
+          $("message").textContent = initial ? "Loaded from shared database." : "Updated from another device.";
+        }
+      } else if (initial && localHasData) {
+        // Only restore this browser's old data when the server section is empty.
         const recovered = await fetch("/api/data/credit_register", {
           method: "PUT", headers: { "Content-Type": "application/json" },
           body: JSON.stringify(rows)
         });
-        if (recovered.ok) $("message").textContent = "Older browser records recovered to shared database.";
+        if (!recovered.ok) throw new Error("Could not recover this browser's records");
+        lastSharedSnapshot = JSON.stringify(rows);
+        $("message").textContent = "Older browser records recovered to shared database.";
+      } else if (initial) {
+        lastSharedSnapshot = JSON.stringify(saved);
+        $("message").textContent = "Connected to shared database. No saved records yet.";
       }
-    } catch (error) {}
-  })();
+    } catch (error) {
+      $("message").textContent = "Shared database unavailable. This device may show only its local copy.";
+      console.error("Credit/Supply shared sync:", error);
+    }
+  }
+
+  renderTable();
+  loadSharedRegister(true);
+  // Keep already-open phones/desktops in sync without overwriting active edits.
+  setInterval(() => {
+    if (document.visibilityState === "visible" && !localWritePending) loadSharedRegister(false);
+  }, 4000);
+})();
 </script>
 
 </body>

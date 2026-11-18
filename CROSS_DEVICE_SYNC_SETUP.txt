@@ -50,3 +50,14 @@ THIS PACKAGE
 - Preserves existing data migration/recovery behavior.
 - Adds no-cache response headers for app pages and API endpoints to prevent
   stale browser/PWA responses when moving between devices.
+
+LIVE CROSS-DEVICE REFRESH
+- Credit/Supply and Installment pages now check the shared server about every
+  4 seconds while visible, so already-open devices receive remote changes.
+- Credit/Supply shared loading was moved inside its JavaScript scope. Previously
+  the loader sat outside the closure that owns rows/render helpers and failed
+  silently, preventing PostgreSQL records from appearing on other devices.
+- A remote refresh is paused while local edits are pending or an installment
+  edit/payment dialog is open to reduce accidental overwrites.
+- This still requires the Railway web service to be running with its
+  DATABASE_URL variable correctly linked to the same PostgreSQL service.
