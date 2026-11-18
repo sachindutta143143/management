@@ -2,39 +2,7 @@
 <style>*{box-sizing:border-box}body{margin:0;background:#edf3f8;font-family:Arial;color:#172033}.top{background:linear-gradient(115deg,#102f50,#1d5682);color:white;padding:16px;position:sticky;top:0;z-index:3}.top h2{margin:0 0 12px;font-size:19px}.nav{display:flex;gap:7px;flex-wrap:wrap}.nav a{color:white;text-decoration:none;border:1px solid #ffffff55;padding:10px 13px;border-radius:8px;font-weight:bold;font-size:13px}.nav a:hover{background:white;color:#173f65}iframe{display:block;width:100%;height:calc(100vh - 112px);min-height:600px;border:0;background:#f3f6fb}@media(max-width:600px){.top{padding:10px}.top h2{font-size:16px}.nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.nav a{text-align:center;padding:9px 4px;font-size:11px}iframe{height:calc(100dvh - 110px);min-height:520px}}</style><script src="/static/offline-sync.js"></script>
 </head>
 <body><header class="top"><h2>M/S. MULTI PLAZA — MANAGEMENT</h2><nav class="nav">
-<a href="/product" target="workspace">Product &amp; Price List</a><a href="/credit" target="workspace">Credit / Supply Register</a><a href="/installments" target="workspace">Installment Register</a><a href="/others" target="workspace">Others</a><a href="/quotation" target="workspace">Quotation</a><a href="/customers" target="workspace">Customers</a><a href="/backup" target="workspace">Data Backup</a>
+<a href="/product" target="workspace">Product &amp; Price List</a><a href="/credit" target="workspace">Credit / Supply Register</a><a href="/installments" target="workspace">Installment Register</a><a href="/others" target="workspace">Others</a><a href="/quotation" target="workspace">Quotation</a><a href="/customers" target="workspace">Customers</a>
 <!-- Future section: add another navigation link and Flask route. -->
-</nav></header><iframe name="workspace" src="/product" title="Multi Plaza workspace"></iframe><script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(err=>console.warn("PWA service worker:",err)));}</script><button id="mpBackupButton" style="position:fixed;right:14px;bottom:54px;z-index:99998;background:#fff;border:1px solid #9ab0ca;border-radius:22px;padding:9px 13px;color:#173b68;font-weight:700;box-shadow:0 2px 8px #0002" onclick="MultiPlazaDownloadBackup()">⬇ Download All Data</button>
-
-<script>
-(function(){
-  const KEY='multi_plaza_last_backup_at_v1';
-  const DAY=24*60*60*1000;
-  function backupDue(){const last=Number(localStorage.getItem(KEY)||0);return !last||Date.now()-last>=DAY;}
-  function downloadBackup(){
-    if(!navigator.onLine){alert('Internet connection is required to download the complete server backup.');return;}
-    fetch('/api/backup/export').then(r=>{if(!r.ok)throw new Error('Backup request failed');return r.blob();})
-      .then(blob=>{
-        const url=URL.createObjectURL(blob),a=document.createElement('a');
-        a.href=url;a.download='Multi-Plaza-Complete-Backup-'+new Date().toISOString().slice(0,10)+'.json';
-        document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
-        localStorage.setItem(KEY,String(Date.now()));
-        alert('Complete database backup downloaded successfully.');
-      }).catch(()=>alert('Backup download failed. Please check your connection and try again.'));
-  }
-  window.MultiPlazaDownloadBackup=downloadBackup;
-  function showReminder(){
-    if(!backupDue()||document.getElementById('mpBackupReminder'))return;
-    const wrap=document.createElement('div');wrap.id='mpBackupReminder';
-    wrap.style='position:fixed;inset:0;background:#0008;z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px;font-family:Arial';
-    wrap.innerHTML='<div style="background:#fff;color:#172033;max-width:420px;width:100%;padding:22px;border-radius:12px;box-shadow:0 8px 35px #0005"><h2 style="margin:0 0 9px;color:#174879">Database Backup Reminder</h2><p style="line-height:1.5">It has been 24 hours or more since your last backup. Download a fresh copy of all Multi Plaza data now.</p><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="mpBackupNow" style="background:#1769b2;color:white;border:0;border-radius:6px;padding:10px 14px;font-weight:bold">Download Backup Now</button><button id="mpBackupLater" style="background:#eef2f6;color:#173b5b;border:1px solid #cbd5df;border-radius:6px;padding:10px 14px">Remind Me Later</button></div></div>';
-    document.body.appendChild(wrap);
-    document.getElementById('mpBackupNow').onclick=()=>{wrap.remove();downloadBackup();};
-    document.getElementById('mpBackupLater').onclick=()=>wrap.remove();
-  }
-  window.addEventListener('load',()=>setTimeout(showReminder,1200));
-  // Re-check when the user returns to the browser tab.
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden)showReminder();});
-})();
-</script>
+</nav></header><iframe name="workspace" src="/product" title="Multi Plaza workspace"></iframe><script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(err=>console.warn("PWA service worker:",err)));}</script><button id="mpBackupButton" style="position:fixed;right:14px;bottom:54px;z-index:99998;background:#fff;border:1px solid #9ab0ca;border-radius:22px;padding:9px 13px;color:#173b68;font-weight:700;box-shadow:0 2px 8px #0002" onclick="(async()=>{try{if(navigator.onLine){const r=await fetch('/api/backup/export');if(!r.ok)throw Error();const b=await r.blob();const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='Multi-Plaza-Database-Backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href)}else{MultiPlazaBackup.exportLocal()}}catch(e){MultiPlazaBackup.exportLocal()}})()">⬇ Backup</button>
 </body></html>

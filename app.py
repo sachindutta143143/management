@@ -87,8 +87,18 @@ with app.app_context():
     # Migrate the other modules from the legacy key/value table when needed.
     for section_key, model in SECTION_MODELS.items():
         legacy = AppData.query.filter_by(data_key=section_key).first()
-        if legacy is not None and db.session.get(model, 1) is None:
-            db.session.add(model(id=1, payload=legacy.payload))
+        current = db.session.get(model, 1)
+        if legacy is not None:
+            # Preserve any populated dedicated table. For Installments only,
+            # recover legacy records when the dedicated row exists but is empty.
+            legacy_payload = legacy.payload
+            legacy_has_data = bool(legacy_payload) if isinstance(legacy_payload, (list, dict)) else False
+            current_payload = current.payload if current is not None else None
+            current_empty = current is None or current_payload in (None, [], {})
+            if current is None:
+                db.session.add(model(id=1, payload=legacy_payload))
+            elif section_key == "installment_register" and current_empty and legacy_has_data:
+                current.payload = legacy_payload
 
     combined = db.session.get(CreditSupplyRegisterData, 1)
     if combined is None:
@@ -156,11 +166,6 @@ def customers_page():
 @app.get("/installments")
 def installments_page():
     return serve_page("installments.html")
-
-
-@app.get("/backup")
-def backup_page():
-    return serve_page("backup.html")
 
 
 @app.get("/others")
@@ -322,39 +327,7 @@ def backup_export():
     combined = db.session.get(CreditSupplyRegisterData, 1)
     if combined is not None:
         payload["credit_supply_register"] = combined.payload
-    legacy_rows = [
-        {"id": row.id, "data_key": row.data_key, "payload": row.payload}
-        for row in AppData.query.order_by(AppData.id).all()
-    ]
-    return jsonify({
-        "created_at": __import__("datetime").datetime.utcnow().isoformat() + "Z",
-        "app_data": payload,
-        "customers": [customer_json(c) for c in Customer.query.order_by(Customer.name).all()],
-        "legacy_app_data_backup": legacy_rows
-    })
-
-@app.get("/api/database/status")
-def database_status():
-    """Report database connectivity and the expected module tables."""
-    from sqlalchemy import inspect
-    db.session.execute(text("SELECT 1"))
-    inspector = inspect(db.engine)
-    existing = set(inspector.get_table_names())
-    expected = [
-        "product_list",
-        "credit_supply_register",
-        "installment_register",
-        "others_register",
-        "quotation_data",
-        "customers",
-        "app_data",
-    ]
-    return jsonify({
-        "status": "ok",
-        "database": "connected",
-        "tables": {name: name in existing for name in expected},
-    })
-
+    return jsonify({"created_at": __import__("datetime").datetime.utcnow().isoformat() + "Z", "app_data": payload, "customers": [customer_json(c) for c in Customer.query.order_by(Customer.name).all()]})
 
 @app.get("/health")
 def health():
