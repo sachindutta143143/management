@@ -207,63 +207,37 @@ document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>{hide(b.datas
 ['customerModal','paymentModal'].forEach(id=>$(id).addEventListener('click',e=>{if(e.target===$(id))hide(id)}));
 async function initialise(){
   let loadedFromServer=false;
-  let serverWasEmpty=false;
-
-  // First try the PostgreSQL record.
   try{
     const response=await fetch('/api/data/installment_register');
     if(!response.ok)throw new Error('Database unavailable');
     const serverData=await response.json();
-    if(Array.isArray(serverData) && serverData.length>0){
-      records=serverData;
-      loadedFromServer=true;
-    }else if(Array.isArray(serverData)){
-      serverWasEmpty=true;
-    }
+    if(Array.isArray(serverData)){records=serverData;loadedFromServer=true;}
   }catch(e){}
-
-  // If PostgreSQL is empty/unavailable, recover this browser's saved records.
-  // Do not replace a non-empty server record with local data.
   if(!loadedFromServer){
-    let recovered=false;
     try{
       let saved=localStorage.getItem(KEY);
-      if(saved){
-        const parsed=JSON.parse(saved);
-        if(Array.isArray(parsed) && parsed.length){records=parsed;recovered=true;}
-      }
-      if(!recovered){
+      if(saved)records=JSON.parse(saved);
+      else{
         let old=localStorage.getItem('multi_plaza_installment_flexible_v2');
-        if(old){
-          const parsed=JSON.parse(old);
-          if(Array.isArray(parsed) && parsed.length){
-            records=parsed.map(c=>({...c,id:c.id||'cust_'+Date.now()+Math.random(),payments:c.payments||[],plan:(c.schedule||[]).map(s=>({...s,covered:s.paid||0}))}));
-            recovered=true;
-          }
-        }
+        if(old){records=JSON.parse(old);records=records.map(c=>({...c,id:c.id||'cust_'+Date.now()+Math.random(),payments:c.payments||[],plan:(c.schedule||[]).map(s=>({...s,covered:s.paid||0}))}));}
       }
-    }catch(e){}
-
-    if(!recovered)records=[];
+    }catch(e){records=[]}
   }
-
   if(!Array.isArray(records))records=[];
   records=records.map(c=>({...c,id:c.id||'cust_'+Math.random(),payments:Array.isArray(c.payments)?c.payments:[],plan:Array.isArray(c.plan)?c.plan:[]}));
   records.forEach(allocate);render();
-
-  if(!loadedFromServer){
-    if(records.length){
-      $('saveState').textContent='Recovered local records — syncing to database…';
-      persist();
-    }else if(serverWasEmpty){
-      $('saveState').textContent='Database is empty — no installment records found';
-    }else{
-      $('saveState').textContent='No saved installment records found';
-    }
-  }else{
-    $('saveState').textContent='Loaded from database';
-  }
+  if(!loadedFromServer)persist();else $('saveState').textContent='Loaded from database';
 }
+// Flush pending changes to PostgreSQL when leaving this section.
+function flushInstallments(){
+  clearTimeout(saveTimer);
+  try{
+    const body=JSON.stringify(records);
+    fetch('/api/data/installment_register',{method:'PUT',headers:{'Content-Type':'application/json'},body,keepalive:true});
+  }catch(e){}
+}
+window.addEventListener('pagehide',flushInstallments);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushInstallments();});
 initialise();
 if('Notification'in window&&Notification.permission==='granted'){notifyDue();setInterval(()=>notifyDue(),60*60*1000)}
 })();
