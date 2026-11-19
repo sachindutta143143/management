@@ -1,0 +1,9 @@
+MULTI PLAZA UPDATE — 19-11-2026
+
+1. Dashboard now has a visible ↻ Refresh button in the header and a Refresh Current Section item in the three-dot menu. It reloads only the currently open iframe section.
+2. Installed desktop PWA refreshes the currently open section once per minute after 20 seconds without user interaction. It does not refresh while the user is actively typing/clicking.
+3. Service worker registration has a versioned URL and update check so installed apps can receive the new UI.
+4. Credit/Supply now keeps one blank entry row at the top. Enter a bill there; after entering data/date, the filled row moves into Bill Date descending order. S.No. stays blank on the entry row and numbers filled records from 1.
+5. Credit/Supply cross-device polling no longer stays paused forever just because an input remains focused; it pauses for 20 seconds after activity, then can load remote changes.
+
+No database tables, existing records, or browser backups were deleted. Deploy the full project, then close/reopen the installed desktop app once to install the updated service worker.

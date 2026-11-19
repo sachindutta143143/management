@@ -652,14 +652,23 @@
   // Keep the newest Bill Date at the top; undated/older entries stay below.
   // Stable sorting preserves the existing order when two bills share a date.
   function sortRowsByBillDate() {
-    rows = rows.map((row, index) => ({ row, index })).sort((a, b) => {
+    // Keep one permanently blank entry line at the very top. Once a row gets
+    // data/date, it moves into the date-sorted list below; remaining blank rows
+    // stay at the bottom for additional entries.
+    const filled = [];
+    const blank = [];
+    rows.forEach((row, index) => (hasData(row) ? filled : blank).push({ row, index }));
+    filled.sort((a, b) => {
       const da = parseDate(a.row.billDate) || '';
       const db = parseDate(b.row.billDate) || '';
       if (!da && !db) return a.index - b.index;
       if (!da) return 1;
       if (!db) return -1;
       return db.localeCompare(da) || a.index - b.index;
-    }).map(item => item.row);
+    });
+    if (!blank.length) blank.push({ row: emptyRow(), index: rows.length });
+    rows = [blank[0].row, ...filled.map(item => item.row), ...blank.slice(1).map(item => item.row)];
+    while (rows.length < 20) rows.push(emptyRow());
   }
   sortRowsByBillDate();
 
@@ -808,10 +817,10 @@
     registerBody.addEventListener(type, () => { lastRegisterInteraction = Date.now(); }, true);
   });
   function registerIsBeingEdited() {
-    const active = document.activeElement;
-    const hasFocusedCell = !!(active && active.classList && active.classList.contains("cell") && registerBody.contains(active));
-    const withinQuietWindow = Date.now() - lastRegisterInteraction < 20000;
-    return hasFocusedCell || withinQuietWindow;
+    // A cell may remain focused after the user stops typing. Pause sync for
+    // 20 seconds after actual interaction, then allow remote updates even if
+    // the caret is still in that cell.
+    return Date.now() - lastRegisterInteraction < 20000;
   }
 
   async function saveNow() {
@@ -910,13 +919,19 @@
     sortRowsByBillDate();
     const fragment = document.createDocumentFragment();
 
+    let visibleSerial = 0;
     rows.forEach((row, rowIndex) => {
       const tr = document.createElement("tr");
       tr.dataset.row = rowIndex;
 
       const serial = document.createElement("td");
       serial.className = "serial";
-      serial.textContent = rowIndex + 1;
+      if (hasData(row)) {
+        visibleSerial += 1;
+        serial.textContent = visibleSerial;
+      } else {
+        serial.textContent = "";
+      }
       tr.appendChild(serial);
 
       columns.forEach((column, columnIndex) => {
