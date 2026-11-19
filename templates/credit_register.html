@@ -603,27 +603,22 @@
   }
 
   function sortRowsByBillDate() {
-    // Stable partitioning avoids an inconsistent sort comparator. Exactly one
-    // blank entry row stays at the top. Draft rows stay in entry order. Only
-    // completed bills (Bill Date + Customer + Item + Rate + Qty) are sorted.
-    const firstBlank = rows.find(row => !hasData(row));
-    const drafts = rows.filter(row => hasData(row) && !isReadyToSort(row));
+    // Deterministic groups: one empty entry row first, then ALL completed
+    // bills in descending real calendar-date order, then incomplete drafts.
+    // Drafts never enter the dated list just because a date was typed.
+    const firstBlank = rows.find(row => !hasData(row)) || emptyRow();
     const completed = rows
-      .filter(isReadyToSort)
-      .map((row, index) => ({ row, index }))
+      .filter(row => row !== firstBlank && isReadyToSort(row))
+      .map((row, originalIndex) => ({ row, originalIndex, date: parseDate(row.billDate) }))
       .sort((a, b) => {
-        const da = parseDate(a.row.billDate) || '';
-        const db = parseDate(b.row.billDate) || '';
-        return db.localeCompare(da) || a.index - b.index;
+        // ISO YYYY-MM-DD strings sort chronologically; newest first.
+        const byDate = b.date.localeCompare(a.date);
+        return byDate || a.originalIndex - b.originalIndex;
       })
-      .map(item => item.row);
+      .map(entry => entry.row);
+    const drafts = rows.filter(row => row !== firstBlank && !isReadyToSort(row) && hasData(row));
     const spareBlanks = rows.filter(row => !hasData(row) && row !== firstBlank);
-    rows = [
-      ...(firstBlank ? [firstBlank] : []),
-      ...drafts,
-      ...completed,
-      ...spareBlanks
-    ];
+    rows = [firstBlank, ...completed, ...drafts, ...spareBlanks];
   }
   sortRowsByBillDate();
 
