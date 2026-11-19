@@ -12,21 +12,79 @@ td:focus-within{background:#eff6ff;outline:2px solid #2563eb;outline-offset:-2px
 <main><section class="panel"><div class="tools"><button id="add">+ Add Row</button><button class="light" id="save">Save Changes</button><span class="muted" id="status">Ready</span></div></section>
 <section class="panel"><div class="wrap"><table><thead><tr><th style="width:14%">Date</th><th style="width:22%">Customer / Name</th><th style="width:30%">Particulars</th><th style="width:14%">Amount</th><th style="width:20%">Remarks</th><th style="width:55px">Del.</th></tr></thead><tbody id="rows"></tbody></table></div></section></main>
 <script>
-let data=[];const fields=['date','customer','particulars','amount','remarks'];
-function row(v={}){return {...Object.fromEntries(fields.map(k=>[k,v[k]||'']))}}
-function render(){let b=document.getElementById('rows');b.innerHTML='';data.forEach((r,i)=>{let tr=document.createElement('tr');fields.forEach(k=>{let td=document.createElement('td'),el=document.createElement(k==='date'||k==='amount'?'input':'textarea');if(k==='date')el.type='date';if(k==='amount')el.type='number';el.value=r[k];el.placeholder=k==='customer'?'Name / second line...':k==='particulars'?'Enter details...':'';el.oninput=()=>{data[i][k]=el.value;saveSoon()};td.append(el);tr.append(td)});let td=document.createElement('td'),btn=document.createElement('button');btn.textContent='×';btn.className='light';btn.onclick=()=>{data.splice(i,1);render();save()};td.append(btn);tr.append(td);b.append(tr)})}
-let timer;function saveSoon(){clearTimeout(timer);document.getElementById('status').textContent='Changes pending…';timer=setTimeout(save,650)}
-async function save(){try{let r=await fetch('/api/data/others_register',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});if(!r.ok)throw Error();document.getElementById('status').textContent='Auto-saved to database';try{localStorage.setItem('mp_others_draft',JSON.stringify(data))}catch(e){}}catch(e){document.getElementById('status').textContent='Save failed — check connection'}}
-window.addEventListener('beforeunload',()=>{try{localStorage.setItem('mp_others_draft',JSON.stringify(data))}catch(e){}});
-function flushOthers(){
-  clearTimeout(timer);
+const KEY='mp_others_draft';
+const fields=['date','customer','particulars','amount','remarks'];
+let data=[];
+let saveTimer=null;
+let localWritePending=false;
+let lastSharedSnapshot='';
+let initialized=false;
+function row(v={}){return {date:v.date||'',customer:v.customer||'',particulars:v.particulars||'',amount:v.amount||'',remarks:v.remarks||''}}
+function render(){
+  let b=document.getElementById('rows');b.innerHTML='';
+  data.forEach((r,i)=>{
+    let tr=document.createElement('tr');
+    fields.forEach(k=>{
+      let td=document.createElement('td'),el=document.createElement(k==='date'||k==='amount'?'input':'textarea');
+      if(k==='date')el.type='date';if(k==='amount')el.type='number';
+      el.value=r[k]??'';el.placeholder=k==='customer'?'Name / second line...':k==='particulars'?'Enter details...':'';
+      el.oninput=()=>{data[i][k]=el.value;saveSoon()};td.append(el);tr.append(td)
+    });
+    let td=document.createElement('td'),btn=document.createElement('button');btn.textContent='×';btn.className='light';
+    btn.onclick=()=>{if(!confirm('Delete this row?'))return;data.splice(i,1);render();save()};td.append(btn);tr.append(td);b.append(tr)
+  });
+}
+function setStatus(message){document.getElementById('status').textContent=message}
+function saveSoon(){localWritePending=true;setStatus('Changes pending…');clearTimeout(saveTimer);saveTimer=setTimeout(save,650)}
+async function save(){
+  clearTimeout(saveTimer);
+  const body=JSON.stringify(data);
+  localWritePending=true;
+  try{localStorage.setItem(KEY,body)}catch(e){}
   try{
-    const body=JSON.stringify(data);
-    fetch('/api/data/others_register',{method:'PUT',headers:{'Content-Type':'application/json'},body,keepalive:true});
-  }catch(e){}
+    const r=await fetch('/api/data/others_register',{method:'PUT',headers:{'Content-Type':'application/json'},body,cache:'no-store'});
+    if(!r.ok)throw Error('HTTP '+r.status);
+    lastSharedSnapshot=body;
+    const hasNewerEdits=JSON.stringify(data)!==body;
+    localWritePending=hasNewerEdits;
+    setStatus(hasNewerEdits?'Saving newer changes…':'Saved to shared database');
+    if(hasNewerEdits)saveSoon();
+  }catch(e){localWritePending=false;setStatus('Save failed — server/database connection unavailable');console.error('Others save failed:',e)}
+}
+async function loadInitial(){
+  let local=[];
+  try{const v=JSON.parse(localStorage.getItem(KEY)||'null');if(Array.isArray(v))local=v.map(row)}catch(e){}
+  try{
+    const r=await fetch('/api/data/others_register',{cache:'no-store'});
+    if(!r.ok)throw Error('HTTP '+r.status);
+    const server=await r.json();if(!Array.isArray(server))throw Error('Invalid server data');
+    if(server.length){data=server.map(row);lastSharedSnapshot=JSON.stringify(server);setStatus('Loaded from shared database');}
+    else if(local.length){data=local;setStatus('Recovering this browser backup to shared database…');await save();}
+    else{data=[];lastSharedSnapshot='[]';setStatus('Connected — no records yet');}
+  }catch(e){data=local;setStatus(local.length?'Server unavailable — showing this browser backup':'Could not connect to shared database');console.error('Others initial load failed:',e)}
+  initialized=true;render();
+  try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}
+}
+async function refreshFromServer(){
+  if(!initialized||document.visibilityState!=='visible'||localWritePending)return;
+  // Do not replace values while a user is typing in a table cell.
+  if(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#rows'))return;
+  try{
+    const r=await fetch('/api/data/others_register',{cache:'no-store'});if(!r.ok)return;
+    const remote=await r.json();if(!Array.isArray(remote))return;
+    const snapshot=JSON.stringify(remote);
+    if(snapshot!==lastSharedSnapshot){data=remote.map(row);lastSharedSnapshot=snapshot;try{localStorage.setItem(KEY,snapshot)}catch(e){}render();setStatus('Updated from another device');}
+  }catch(e){console.warn('Others live sync failed:',e)}
+}
+function flushOthers(){
+  clearTimeout(saveTimer);
+  if(!localWritePending)return;
+  try{const body=JSON.stringify(data);localStorage.setItem(KEY,body);fetch('/api/data/others_register',{method:'PUT',headers:{'Content-Type':'application/json'},body,keepalive:true});}catch(e){}
 }
 window.addEventListener('pagehide',flushOthers);
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushOthers();});
-async function load(){let serverHas=false;try{let r=await fetch('/api/data/others_register');if(r.ok){let d=await r.json();if(Array.isArray(d)&&d.length){data=d.map(row);serverHas=true;}}}catch(e){}if(!serverHas){try{let draft=JSON.parse(localStorage.getItem('mp_others_draft')||'null');if(Array.isArray(draft)&&draft.length){data=draft.map(row);await fetch('/api/data/others_register',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});}}catch(e){}}if(!data.length)data=[row()];render()}
-document.getElementById('add').onclick=()=>{data.push(row());render();save()};document.getElementById('save').onclick=save;load();
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushOthers();else refreshFromServer()});
+setInterval(refreshFromServer,3000);
+document.getElementById('add').onclick=()=>{data.push(row());render();saveSoon()};
+document.getElementById('save').onclick=save;
+loadInitial();
 </script></body></html>

@@ -1,0 +1,22 @@
+MULTI PLAZA UPDATE — 19 NOV 2026
+
+1) CREDIT / SUPPLY REGISTER
+- Rows are automatically ordered by Bill Date: newest bill date first, older dates below.
+- Rows without a Bill Date remain at the bottom.
+- When a Bill Date is edited and the field is left, the table reorders and saves the same records to the shared API.
+- Credit and Supply continue using the existing combined PostgreSQL table and legacy API aliases.
+
+2) OTHERS REGISTER
+- Added shared-server initial load, no-cache polling, and remote refresh every 3 seconds.
+- Changes are debounced and saved to /api/data/others_register.
+- The page does not replace data while a user is typing or while a save is pending.
+- Local browser draft is only used to recover records when the server table is empty; non-empty server data remains authoritative.
+
+3) DEPLOYMENT
+- Deploy this complete project to the same Railway web service.
+- Confirm web service DATABASE_URL references the existing PostgreSQL service DATABASE_URL.
+- Do not delete/recreate PostgreSQL or clear tables.
+- After deployment, test by adding/editing one record on device A, waiting for “Saved to shared database”, then open/refresh device B.
+- Existing open Others pages should receive changes within about 3 seconds while visible.
+
+Note: A single shared database is required. If Railway DATABASE_URL is missing or points to a different PostgreSQL service, devices cannot share records. Concurrent edits to the exact same row from multiple devices should be avoided; latest full-register save wins.

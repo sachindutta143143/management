@@ -586,6 +586,20 @@
     rows = Array.from({ length: 20 }, emptyRow);
   }
 
+  // Keep the newest Bill Date at the top; undated/older entries stay below.
+  // Stable sorting preserves the existing order when two bills share a date.
+  function sortRowsByBillDate() {
+    rows = rows.map((row, index) => ({ row, index })).sort((a, b) => {
+      const da = parseDate(a.row.billDate) || '';
+      const db = parseDate(b.row.billDate) || '';
+      if (!da && !db) return a.index - b.index;
+      if (!da) return 1;
+      if (!db) return -1;
+      return db.localeCompare(da) || a.index - b.index;
+    }).map(item => item.row);
+  }
+  sortRowsByBillDate();
+
   function number(value) {
     const cleaned = String(value ?? "").replace(/[₹,\s]/g, "");
 
@@ -800,6 +814,7 @@
   }
 
   function renderTable() {
+    sortRowsByBillDate();
     const fragment = document.createDocumentFragment();
 
     rows.forEach((row, rowIndex) => {
@@ -1000,7 +1015,12 @@
         input.value = date;
         rows[rowIndex][key] = date;
 
-        updateDashboard();
+        if (key === "billDate") {
+          sortRowsByBillDate();
+          renderTable();
+        } else {
+          updateDashboard();
+        }
         scheduleSave();
       }
     }
@@ -1446,6 +1466,7 @@
         const snapshot = JSON.stringify(saved);
         if (initial || (!localWritePending && snapshot !== lastSharedSnapshot)) {
           rows = saved.map(row => ({ ...emptyRow(), ...row }));
+          sortRowsByBillDate();
           renderTable();
           updateAllCalculations();
           localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
