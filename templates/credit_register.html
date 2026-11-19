@@ -586,8 +586,9 @@
     rows = Array.from({ length: 20 }, emptyRow);
   }
 
-  // Only completed bills are date-sorted. A row is considered complete
-  // after Bill Date, Customer/Details, Item, Rate and Quantity are entered.
+  // Only completed bills are date-sorted. Required fields are exactly:
+  // Bill Date, Customer, Item, Rate and Qty. Total is calculated automatically.
+  // Order No. and Bill No. are optional and do not trigger sorting.
   // This prevents entering the date first from moving the row away mid-entry.
   function isReadyToSort(row) {
     return Boolean(
@@ -744,6 +745,19 @@
   let saveTimer;
   let localWritePending = false;
   let lastSharedSnapshot = "";
+  // Keep the active cell stable while the user is interacting. Remote polling
+  // must never replace the table immediately after a click or while typing.
+  let lastUserInteractionAt = Date.now();
+  const INTERACTION_GRACE_MS = 20000;
+  function markUserInteraction() { lastUserInteractionAt = Date.now(); }
+  ["pointerdown", "focusin", "keydown", "input", "change", "touchstart"].forEach(type => {
+    document.addEventListener(type, markUserInteraction, true);
+  });
+  function userIsActivelyEditing() {
+    const active = document.activeElement;
+    return (Date.now() - lastUserInteractionAt < INTERACTION_GRACE_MS) ||
+      !!(active && active.classList && active.classList.contains("cell"));
+  }
 
   async function saveNow() {
     clearTimeout(saveTimer);
@@ -1524,7 +1538,9 @@
   loadSharedRegister(true);
   // Keep already-open phones/desktops in sync without overwriting active edits.
   setInterval(() => {
-    if (document.visibilityState === "visible" && !localWritePending) loadSharedRegister(false);
+    if (document.visibilityState === "visible" && !localWritePending && !userIsActivelyEditing()) {
+      loadSharedRegister(false);
+    }
   }, 4000);
 })();
 </script>
