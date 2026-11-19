@@ -601,10 +601,21 @@
   }
 
   function sortRowsByBillDate() {
+    // Keep exactly one completely blank entry row at the very top at all times.
+    // Partially completed entries stay directly below it; only fully completed
+    // bills (Bill Date + Customer + Item + Rate + Qty) are date-sorted.
+    const firstBlankIndex = rows.findIndex(row => !hasData(row));
     rows = rows.map((row, index) => ({ row, index })).sort((a, b) => {
+      const blankA = !hasData(a.row);
+      const blankB = !hasData(b.row);
       const readyA = isReadyToSort(a.row);
       const readyB = isReadyToSort(b.row);
-      if (readyA !== readyB) return readyA ? -1 : 1;
+
+      if (a.index === firstBlankIndex) return -1;
+      if (b.index === firstBlankIndex) return 1;
+      if (blankA !== blankB) return blankA ? 1 : -1; // spare blank rows at bottom
+      if (blankA && blankB) return a.index - b.index;
+      if (readyA !== readyB) return readyA ? 1 : -1; // incomplete rows before completed bills
       if (!readyA && !readyB) return a.index - b.index;
       const da = parseDate(a.row.billDate) || '';
       const db = parseDate(b.row.billDate) || '';
@@ -857,7 +868,11 @@
 
       const serial = document.createElement("td");
       serial.className = "serial";
-      serial.textContent = rowIndex + 1;
+      // Keep the permanent top entry row's serial number blank.
+      // Number only completed records; incomplete drafts remain unnumbered.
+      serial.textContent = isReadyToSort(row)
+        ? String(rows.slice(0, rowIndex + 1).filter(isReadyToSort).length)
+        : "";
       tr.appendChild(serial);
 
       columns.forEach((column, columnIndex) => {
