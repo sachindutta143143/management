@@ -491,7 +491,7 @@ def _write_sheet(wb, title, rows, headers=None):
 
 @app.post("/api/backup/excel")
 def backup_excel():
-    """Create a multi-sheet Excel backup, including browser-only saved product/register data."""
+    """Create a multi-sheet backup from PostgreSQL; include browser copies separately for reference."""
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment
     browser=request.get_json(silent=True) or {}
@@ -509,20 +509,17 @@ def backup_excel():
         if not raw: return None
         try: return json.loads(raw)
         except Exception: return None
-    installment_local=local_json("multi_plaza_installment_register_v3") or local_json("multi_plaza_installment_flexible_v2")
-    if not data.get("installment_register") and installment_local: data["installment_register"]=installment_local
+    # Never substitute browser localStorage into authoritative register exports.
+    # Stale local copies may contain records already deleted from PostgreSQL.
     product_local=local.get("multiPlazaPriceList")
     product_header=local.get("multiPlazaHeader")
     product_payload=data.get("product_list") or {}
     if isinstance(product_payload,dict):
         product_payload=dict(product_payload)
-        # Browser copy is the most recent editable product list when supplied.
-        if product_local and str(product_local).strip():
-            product_payload["content"]=product_local
-        if product_header and str(product_header).strip():
-            product_payload["header"]=product_header
+        # PostgreSQL remains authoritative. Browser copies are preserved separately
+        # in the Browser Backup sheet and Full Data Snapshot for manual recovery only.
     else:
-        product_payload={"content":product_local or "", "header":product_header or ""}
+        product_payload={"content":"", "header":""}
 
     # Critical fallback: some older deployments never saved the initial catalogue
     # HTML into PostgreSQL/localStorage. In that case export the bundled live catalogue
@@ -542,7 +539,7 @@ def backup_excel():
     summary.append(["Created At",datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")])
     summary.append(["Backup format","Excel workbook (.xlsx) — separate sheets per register"])
     summary.append(["Credit + Supply","Same combined database table; exported into two sheets for easy viewing"])
-    summary.append(["Source","PostgreSQL + browser local backup where server section is empty"])
+    summary.append(["Source","PostgreSQL authoritative data; browser localStorage exported separately for reference"])
     summary[1][0].font=Font(bold=True,size=15,color="FFFFFF"); summary[1][0].fill=PatternFill("solid",fgColor="173F63")
     summary.column_dimensions["A"].width=34; summary.column_dimensions["B"].width=75
 
@@ -576,7 +573,7 @@ def backup_excel():
     _write_sheet(wb,"Installment Register",installment_rows,headers=installment_headers)
     _write_sheet(wb,"Others Register",_as_list(data.get("others_register")))
     customers=[customer_json(c) for c in Customer.query.order_by(Customer.name).all()]
-    if not customers: customers=_as_list(browser.get("customers"))
+    # Do not replace an empty PostgreSQL customer table with stale browser data.
     _write_sheet(wb,"Customers",customers)
 
     # Product list: export one product per row and preserve DP Price values separately.

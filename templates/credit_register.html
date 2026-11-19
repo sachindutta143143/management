@@ -358,33 +358,16 @@
 <script src="/static/offline-sync.js"></script>
 
 
-
-
-<style id="mobile-balance-due-visible-v2">
-@media (max-width:700px) {
-  .table-container { width:100% !important; overflow-x:auto !important; overflow-y:auto !important; -webkit-overflow-scrolling:touch; }
-  .table-container table { width:1900px !important; min-width:1900px !important; table-layout:fixed !important; }
-  .table-container th, .table-container td { white-space:normal; }
-  /* Keep the three most important financial/date columns visible while scrolling. */
-  .table-container th:nth-child(9), .table-container td:nth-child(9) {
-    position:sticky !important; right:220px !important; width:110px !important; min-width:110px !important;
-    z-index:5; background:#e7f2fb !important; box-shadow:-2px 0 4px rgba(20,50,80,.12);
-  }
-  .table-container th:nth-child(16), .table-container td:nth-child(16) {
-    position:sticky !important; right:110px !important; width:110px !important; min-width:110px !important;
-    z-index:6; background:#dcecf9 !important; box-shadow:-2px 0 4px rgba(20,50,80,.12);
-  }
-  .table-container th:nth-child(17), .table-container td:nth-child(17) {
-    position:sticky !important; right:0 !important; width:110px !important; min-width:110px !important;
-    z-index:7; background:#fff !important; box-shadow:-2px 0 4px rgba(20,50,80,.12);
-  }
-  .table-container thead th:nth-child(9), .table-container thead th:nth-child(16),
-  .table-container thead th:nth-child(17) { background:#214e79 !important; color:#fff !important; z-index:9 !important; }
-  .table-container td:nth-child(9), .table-container td:nth-child(16) { font-size:15px !important; font-weight:700 !important; }
-  .table-container td:nth-child(9) .cell, .table-container td:nth-child(16) .cell {
-    font-size:15px !important; font-weight:700 !important; min-width:100px !important; line-height:1.25 !important;
-  }
-  .table-container td:nth-child(17) .cell { font-size:13px !important; min-width:100px !important; }
+<style id="mobile-total-balance-due-v4">
+@media(max-width:700px){
+  .table-container{width:100%!important;max-width:100%!important;overflow-x:auto!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch!important}
+  .table-container table{width:1900px!important;min-width:1900px!important;table-layout:fixed!important}
+  .table-container th:nth-child(9),.table-container td:nth-child(9){position:sticky!important;right:210px!important;width:105px!important;min-width:105px!important;background:#e8f3fc!important;z-index:5;box-shadow:-2px 0 5px #14325020}
+  .table-container th:nth-child(16),.table-container td:nth-child(16){position:sticky!important;right:105px!important;width:105px!important;min-width:105px!important;background:#dcecf9!important;z-index:6;box-shadow:-2px 0 5px #14325020}
+  .table-container th:nth-child(17),.table-container td:nth-child(17){position:sticky!important;right:0!important;width:105px!important;min-width:105px!important;background:#fff!important;z-index:7;box-shadow:-2px 0 5px #14325020}
+  .table-container thead th:nth-child(9),.table-container thead th:nth-child(16),.table-container thead th:nth-child(17){background:#214e79!important;color:#fff!important;z-index:10!important}
+  .table-container td:nth-child(9),.table-container td:nth-child(16){font-size:15px!important;font-weight:800!important;line-height:1.25!important;overflow-wrap:anywhere!important}
+  .table-container td:nth-child(9) *, .table-container td:nth-child(16) *{font-size:15px!important;font-weight:800!important;line-height:1.25!important;overflow-wrap:anywhere!important}
 }
 </style>
 

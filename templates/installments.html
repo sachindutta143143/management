@@ -79,7 +79,7 @@ tfoot td{background:#e8eff6;font-weight:bold}
 <tbody id="customers"></tbody>
 <tfoot><tr><td colspan="4">TOTAL</td><td class="money" id="footTotal">₹0.00</td><td class="money" id="footPaid">₹0.00</td><td class="money" id="footBalance">₹0.00</td><td colspan="2"></td></tr></tfoot>
 </table></div>
-<p class="note">Enter the machine total once. Choose the number of installments, then select each due date from the calendar and adjust the amount. Record a payment whenever the customer pays. Payment amounts and dates are flexible.</p>
+<p class="note">Enter the machine total once. Choose the number of installments, then adjust each due date and amount. Record a payment whenever the customer pays. Payment amounts and dates are flexible.</p>
 </main>
 
 <!-- Small in-page customer form; no browser prompt() dialogs -->
@@ -94,7 +94,7 @@ tfoot td{background:#e8eff6;font-weight:bold}
 <div class="field"><label>Advance Received (₹)</label><input id="fAdvance" type="number" min="0" placeholder="e.g. 20000"></div>
 <div class="field"><label>Advance Payment Date</label><input id="fAdvanceDate" type="text" inputmode="numeric" placeholder="DD-MM-YYYY"></div>
 <div class="field"><label>Installments for remaining balance</label><select id="fCount"><option value="1">1 installment</option><option value="2">2 installments</option><option value="3">3 installments</option><option value="4" selected>4 installments</option><option value="5">5 installments</option><option value="6">6 installments</option><option value="7">7 installments</option><option value="8">8 installments</option><option value="9">9 installments</option><option value="10">10 installments</option><option value="11">11 installments</option><option value="12">12 installments</option></select></div>
-<div class="field"><label>First Due Date</label><input id="fFirstDate" type="date"></div>
+<div class="field"><label>First Due Date (select from calendar)</label><input id="fFirstDate" type="date"></div>
 </div>
 <div class="schedule-title">Remaining balance installment plan — change every amount and date yourself</div>
 <div class="toolbar" style="margin:5px 0 7px">
@@ -103,7 +103,7 @@ tfoot td{background:#e8eff6;font-weight:bold}
 <span class="muted" id="planTotal">Scheduled: ₹0.00</span>
 </div>
 <div class="schedule-grid" id="scheduleGrid"></div>
-<div class="muted" style="margin-top:6px">Add as many installments as required. Select each due date using the calendar and edit the amount individually. Select “Divide Remaining Equally” only when equal payments are preferred.</div>
+<div class="muted" style="margin-top:6px">Add as many installments as required. Edit each due date and amount individually. Select “Divide Remaining Equally” only when equal payments are preferred.</div>
 </div>
 <div class="dialog-foot"><button data-close="customerModal">Cancel</button><button class="primary" id="saveCustomer">Save Customer</button></div>
 </div></div>
@@ -133,7 +133,7 @@ const money=v=>'₹'+num(v).toLocaleString('en-IN',{minimumFractionDigits:2,maxi
 const today=()=>{let d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const parseDate=s=>{let t=String(s||'').trim();if(!t)return '';let m=t.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);if(m){let d=+m[1],mo=+m[2],y=+m[3],dt=new Date(Date.UTC(y,mo-1,d));if(dt.getUTCFullYear()!==y||dt.getUTCMonth()!==mo-1||dt.getUTCDate()!==d)return null;return `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`}return /^\d{4}-\d{2}-\d{2}$/.test(t)?t:null};
 const dateLabel=s=>{if(!s)return '—';let iso=parseDate(s);if(!iso)return s;let [y,m,d]=iso.split('-');return `${d}-${m}-${y}`};
-const setDateInput=(id,iso)=>{$(id).value=iso?dateLabel(iso):''};
+const setDateInput=(id,iso)=>{$(id).value=iso?(($(id).type==='date')?(parseDate(iso)||''):dateLabel(iso)):''};
 const getDateInput=id=>parseDate($(id).value);
 const addMonth=(iso,n)=>{let d=new Date(iso+'T12:00:00'),day=d.getDate();d.setDate(1);d.setMonth(d.getMonth()+n);d.setDate(Math.min(day,new Date(d.getFullYear(),d.getMonth()+1,0).getDate()));return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -183,17 +183,32 @@ function allocate(c){let left=regularReceived(c);(c.plan||[]).forEach(p=>{p.cove
 function show(id){$(id).classList.add('show')}function hide(id){$(id).classList.remove('show')}
 function openCustomer(id=null){editId=id;let c=id?records.find(x=>x.id===id):null;$('customerHeading').textContent=c?'Edit Customer / Installment Plan':'Add Customer / Machine';$('fName').value=c?.name||'';$('fMobile').value=c?.mobile||'';$('fItem').value=c?.item||'';$('fTotal').value=c?.total??'';$('fAdvance').value=c?advanceReceived(c):'';setDateInput('fAdvanceDate',c?(c.payments||[]).find(p=>p.kind==='advance')?.date||today():today());$('fCount').value=c?.plan?.length||4;setDateInput('fFirstDate',c?.plan?.[0]?.date||today());draft=c?JSON.parse(JSON.stringify(c.plan||[])):[];if(!c)buildPlan();else drawPlan();show('customerModal')}
 function remainingToSchedule(){return Math.max(0,num($('fTotal').value)-num($('fAdvance').value))}
-function buildPlan(){let count=Number($('fCount').value),total=remainingToSchedule(),start=getDateInput('fFirstDate');if(!count||!start){draft=[];drawPlan();return}let each=Math.floor(total/count*100)/100;draft=Array.from({length:count},(_,i)=>({date:addMonth(start,i),amount:i===count-1?Math.round((total-each*(count-1))*100)/100:each,covered:0}));drawPlan()}
+function buildPlan(){
+  const count=Math.max(0,Number($('fCount').value)||0),start=getDateInput('fFirstDate');
+  if(!count||!start){draft=[];drawPlan();return}
+  if(!draft.length){
+    const total=remainingToSchedule(),each=Math.floor(total/count*100)/100;
+    draft=Array.from({length:count},(_,i)=>({date:addMonth(start,i),amount:i===count-1?Math.round((total-each*(count-1))*100)/100:each,covered:0}));
+  }else{
+    while(draft.length>count) draft.pop();
+    while(draft.length<count){
+      const last=draft[draft.length-1]?.date||start;
+      draft.push({date:addMonth(last,1),amount:0,covered:0});
+    }
+  }
+  drawPlan();
+}
 function divideDraftEqually(){let count=draft.length,total=remainingToSchedule();if(!count)return;let each=Math.floor(total/count*100)/100;draft.forEach((p,i)=>p.amount=i===count-1?Math.round((total-each*(count-1))*100)/100:each);drawPlan()}
 function syncCountSelector(){let count=draft.length,sel=$('fCount');if(![...sel.options].some(o=>Number(o.value)===count)){let opt=document.createElement('option');opt.value=String(count);opt.textContent=count+' installments';sel.append(opt)}sel.value=String(count)}
 function addDraftInstallment(){let last=draft.length?draft[draft.length-1].date:getDateInput('fFirstDate')||today();draft.push({date:addMonth(last,1),amount:0,covered:0});syncCountSelector();drawPlan()}
 function drawPlan(){let box=$('scheduleGrid');box.innerHTML='';['No.','Due Date','Amount (₹)',''].forEach(t=>{let e=document.createElement('div');e.className='head';e.textContent=t;box.append(e)});draft.forEach((p,i)=>{let no=document.createElement('div');no.className='n';no.textContent=i+1;box.append(no);let d=document.createElement('input');d.type='date';d.value=parseDate(p.date||'')||'';d.onchange=()=>{if(!d.value){d.setCustomValidity('Please select a due date');d.reportValidity();d.setCustomValidity('');return}p.date=d.value;updatePlanTotal()};box.append(d);let a=document.createElement('input');a.type='number';a.min='0';a.step='0.01';a.value=p.amount;a.oninput=()=>{p.amount=a.value===''?'':num(a.value);updatePlanTotal()};box.append(a);let rm=document.createElement('button');rm.type='button';rm.className='red small';rm.textContent='Remove';rm.disabled=draft.length<=1;rm.onclick=()=>{draft.splice(i,1);syncCountSelector();drawPlan()};box.append(rm)});syncCountSelector();updatePlanTotal()}
 function updatePlanTotal(){let total=draft.reduce((s,p)=>s+num(p.amount),0),remaining=remainingToSchedule(),diff=remaining-total;$('planTotal').textContent='Scheduled: '+money(total)+' · '+(Math.abs(diff)<0.01?'Matches remaining balance':(diff>0?'Not yet scheduled: ':'Over scheduled by ')+money(Math.abs(diff)))}
-function saveCustomer(){let name=$('fName').value.trim(),total=Number($('fTotal').value),advance=num($('fAdvance').value);if(!name||!Number.isFinite(total)||total<=0){alert('Please enter the customer name and a valid machine amount.');return}if(advance>total){alert('Advance payment cannot exceed the total machine amount.');return}if(advance>0&&!getDateInput('fAdvanceDate')){alert('Please enter Advance Payment Date in DD-MM-YYYY format.');return}let remaining=total-advance;if(draft.length&&Math.abs(draft.reduce((s,p)=>s+num(p.amount),0)-remaining)>0.01){alert('The total of the installment amounts must equal the balance remaining after the advance. You can use “Divide Remaining Equally” to calculate the amounts automatically.');return}
+function saveCustomer(){let name=$('fName').value.trim(),total=Number($('fTotal').value),advance=num($('fAdvance').value);if(!name||!Number.isFinite(total)||total<=0){alert('Please enter the customer name and a valid machine amount.');return}if(advance>total){alert('Advance payment cannot exceed the total machine amount.');return}if(advance>0&&!getDateInput('fAdvanceDate')){alert('Please enter a valid Advance Payment Date.');return}if(draft.some(p=>!parseDate(p.date)||!Number.isFinite(Number(p.amount))||Number(p.amount)<0)){alert('Please select a valid due date and amount for every installment.');return}let remaining=total-advance;if(draft.length&&Math.abs(draft.reduce((s,p)=>s+num(p.amount),0)-remaining)>0.01){alert('The total of the installment amounts must equal the balance remaining after the advance. You can use “Divide Remaining Equally” to calculate the amounts automatically.');return}
 let c=editId?records.find(x=>x.id===editId):null;if(!c){c={id:'cust_'+Date.now(),payments:[],plan:[]};records.push(c)}
 c.name=name;c.mobile=$('fMobile').value.trim();c.item=$('fItem').value.trim();c.total=total;
+const existingAdvance=(c.payments||[]).find(p=>p.kind==='advance');
 c.payments=(c.payments||[]).filter(p=>p.kind!=='advance');
-if(advance>0)c.payments.unshift({date:getDateInput('fAdvanceDate')||today(),amount:advance,remark:'Advance received',kind:'advance'});
+if(advance>0)c.payments.unshift({...existingAdvance,date:getDateInput('fAdvanceDate')||today(),amount:advance,remark:existingAdvance?.remark||'Advance received',kind:'advance'});
 c.plan=draft.map(p=>({...p,amount:num(p.amount),covered:0}));allocate(c);persist();hide('customerModal');render()}
 function openPayment(id){paymentId=id;paymentEditIndex=null;let c=records.find(x=>x.id===id);$('paymentHeading').textContent='Add Payment Received';$('paymentCustomer').textContent=c.name+' · Balance: '+money(balance(c));setDateInput('payDate',today());$('payAmount').value='';$('payRemark').value='';$('payFullBalance').style.display='inline-block';show('paymentModal')}
 function savePayment(){let c=records.find(x=>x.id===paymentId),amount=Number($('payAmount').value);if(!c||!Number.isFinite(amount)||amount<=0){alert('Please enter a valid payment amount.');return}let old=paymentEditIndex===null?null:c.payments[paymentEditIndex];let available=balance(c)+(old?num(old.amount):0);if(amount>available+0.009){alert('Payment amount cannot exceed the outstanding balance. Maximum allowed: '+money(available));return}let paymentDate=getDateInput('payDate');if(!paymentDate){alert('Please enter Payment Date in DD-MM-YYYY format.');return}let entry={date:paymentDate,amount,remark:$('payRemark').value.trim()};if(old&&old.kind)entry.kind=old.kind;if(paymentEditIndex===null)c.payments.push(entry);else c.payments[paymentEditIndex]=entry;allocate(c);persist();hide('paymentModal');$('payFullBalance').style.display='inline-block';render()}
@@ -243,7 +258,18 @@ function exportCSV(){
   a.href=u;a.download='Multi_Plaza_Installment_Register_Full_Export.csv';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);
 }
 $('addCustomer').onclick=()=>openCustomer();$('saveCustomer').onclick=saveCustomer;$('search').oninput=render;$('export').onclick=exportCSV;$('reminderPermission').onclick=requestReminder;
-$('fCount').onchange=buildPlan;$('fFirstDate').onchange=()=>{let d=getDateInput('fFirstDate');if(!d){alert('Use DD-MM-YYYY for First Due Date.');return}setDateInput('fFirstDate',d);buildPlan()};
+$('fCount').onchange=buildPlan;
+$('fFirstDate').onchange=()=>{
+  const next=getDateInput('fFirstDate');
+  if(!next){alert('Please select a valid First Due Date (select from calendar).');return}
+  if(!draft.length){buildPlan();return}
+  const first=draft[0]?.date||next;
+  const [oy,om]=first.split('-').map(Number),[ny,nm]=next.split('-').map(Number);
+  const shift=(ny-oy)*12+(nm-om);
+  if(shift) draft=draft.map((p,i)=>({...p,date:addMonth(p.date||first,shift)}));
+  if(draft.length)draft[0].date=next;
+  drawPlan();
+};
 ['fAdvanceDate','payDate'].forEach(id=>$(id).addEventListener('blur',()=>{let d=getDateInput(id);if(d)setDateInput(id,d)}));
 $('fTotal').oninput=()=>{if(!editId)buildPlan();else updatePlanTotal()};
 $('fAdvance').oninput=()=>{if(!editId)buildPlan();else updatePlanTotal()};
