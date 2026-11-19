@@ -19,16 +19,18 @@ let saveTimer=null;
 let localWritePending=false;
 let lastSharedSnapshot='';
 let initialized=false;
-function row(v={}){return {date:v.date||'',customer:v.customer||'',particulars:v.particulars||'',amount:v.amount||'',remarks:v.remarks||''}}
+function parseDate(value){let t=String(value||'').trim();if(!t)return '';let m=t.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);if(m){let d=+m[1],mo=+m[2],y=+m[3],dt=new Date(Date.UTC(y,mo-1,d));if(dt.getUTCFullYear()!==y||dt.getUTCMonth()!==mo-1||dt.getUTCDate()!==d)return null;return `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`}m=t.match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?t:null}
+function displayDate(v){let iso=parseDate(v);if(!iso)return String(v||'');let [y,m,d]=iso.split('-');return `${d}-${m}-${y}`}
+function row(v={}){return {date:parseDate(v.date)||v.date||'',customer:v.customer||'',particulars:v.particulars||'',amount:v.amount||'',remarks:v.remarks||''}}
 function render(){
   let b=document.getElementById('rows');b.innerHTML='';
   data.forEach((r,i)=>{
     let tr=document.createElement('tr');
     fields.forEach(k=>{
       let td=document.createElement('td'),el=document.createElement(k==='date'||k==='amount'?'input':'textarea');
-      if(k==='date')el.type='date';if(k==='amount')el.type='number';
-      el.value=r[k]??'';el.placeholder=k==='customer'?'Name / second line...':k==='particulars'?'Enter details...':'';
-      el.oninput=()=>{data[i][k]=el.value;saveSoon()};td.append(el);tr.append(td)
+      if(k==='date'){el.type='text';el.placeholder='DD-MM-YYYY';el.inputMode='numeric'}if(k==='amount')el.type='number';
+      el.value=k==='date'?displayDate(r[k]):(r[k]??'');el.placeholder=k==='customer'?'Name / second line...':k==='particulars'?'Enter details...':'';
+      el.oninput=()=>{data[i][k]=k==='date'?(parseDate(el.value)||el.value):el.value;saveSoon()};if(k==='date')el.onblur=()=>{let v=parseDate(el.value);if(v){data[i][k]=v;el.value=displayDate(v);saveSoon()}else if(el.value.trim()){el.setCustomValidity('Use DD-MM-YYYY');el.reportValidity();el.setCustomValidity('')}};td.append(el);tr.append(td)
     });
     let td=document.createElement('td'),btn=document.createElement('button');btn.textContent='×';btn.className='light';
     btn.onclick=()=>{if(!confirm('Delete this row?'))return;data.splice(i,1);render();save()};td.append(btn);tr.append(td);b.append(tr)

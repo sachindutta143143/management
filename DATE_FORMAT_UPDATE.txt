@@ -1,0 +1,11 @@
+MULTI PLAZA DATE FORMAT UPDATE
+
+All visible date entry/display fields in these modules now use DD-MM-YYYY:
+- Credit / Supply Register (Bill Date and Due Date)
+- Installment Register (Advance Payment Date, First Due Date, installment plan dates, Payment Date)
+- Others register (Date)
+- Quotation date
+
+Dates continue to be stored internally in ISO YYYY-MM-DD format for sorting and database compatibility. Existing database records are not rewritten or deleted. Older ISO dates are displayed as DD-MM-YYYY when loaded.
+
+When entering a date, use DD-MM-YYYY, for example 19-11-2026.
