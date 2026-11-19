@@ -638,6 +638,8 @@
   }
 
   // A bill is eligible for date sorting only after all five required fields exist.
+  // IMPORTANT: Bill Date is NOT a unique key. Multiple bills may have the exact same date.
+  // Keep every row (including same-date rows) and use original position as a stable tie-breaker.
   // Incomplete drafts stay below completed bills; one blank entry stays at top.
   function isReadyToSort(row) {
     const parsed = parseDate(row.billDate);
@@ -647,14 +649,20 @@
   }
 
   function sortRowsByBillDate() {
-    const firstBlank = rows.find(row => !hasData(row)) || emptyRow();
-    const completed = rows
-      .filter(row => row !== firstBlank && isReadyToSort(row))
+    const sourceRows = rows.slice();
+    const firstBlank = sourceRows.find(row => !hasData(row)) || emptyRow();
+    const completed = sourceRows
       .map((row, originalIndex) => ({ row, originalIndex, date: parseDate(row.billDate) }))
-      .sort((a, b) => b.date.localeCompare(a.date) || a.originalIndex - b.originalIndex)
+      .filter(entry => entry.row !== firstBlank && isReadyToSort(entry.row))
+      .sort((a, b) => {
+        // Descending date; equal dates are both allowed and retain their existing order.
+        const byDate = b.date.localeCompare(a.date);
+        return byDate !== 0 ? byDate : a.originalIndex - b.originalIndex;
+      })
       .map(entry => entry.row);
-    const drafts = rows.filter(row => row !== firstBlank && !isReadyToSort(row) && hasData(row));
-    const spareBlanks = rows.filter(row => !hasData(row) && row !== firstBlank);
+    const drafts = sourceRows.filter(row => row !== firstBlank && !isReadyToSort(row) && hasData(row));
+    const spareBlanks = sourceRows.filter(row => !hasData(row) && row !== firstBlank);
+    // Do not deduplicate by bill date: same-date bills are separate records.
     rows = [firstBlank, ...completed, ...drafts, ...spareBlanks];
   }
 

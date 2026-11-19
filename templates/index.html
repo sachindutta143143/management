@@ -2,7 +2,7 @@
 <style>*{box-sizing:border-box}body{margin:0;background:#edf3f8;font-family:Arial;color:#172033}.top{background:linear-gradient(115deg,#102f50,#1d5682);color:white;padding:16px;position:sticky;top:0;z-index:3}.top h2{margin:0 0 12px;font-size:19px}.nav{display:flex;gap:7px;flex-wrap:wrap}.nav a{color:white;text-decoration:none;border:1px solid #ffffff55;padding:10px 13px;border-radius:8px;font-weight:bold;font-size:13px}.nav a:hover{background:white;color:#173f65}iframe{display:block;width:100%;height:calc(100vh - 112px);min-height:600px;border:0;background:#f3f6fb}@media(max-width:600px){.top{padding:10px}.top h2{font-size:16px}.nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.nav a{text-align:center;padding:9px 4px;font-size:11px}iframe{height:calc(100dvh - 110px);min-height:520px}}
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .topbar h2{margin:0}
-.mp-more-wrap{position:relative;flex:0 0 auto}
+.mp-more-wrap{position:relative;flex:0 0 auto}.mp-refresh-top{border:1px solid #ffffff88;border-radius:9px;background:#ffffff18;color:#fff;padding:9px 12px;font-weight:700;cursor:pointer}.top-actions{display:flex;align-items:center;gap:8px}
 .mp-more-btn{width:42px;height:40px;border:1px solid #ffffff88;border-radius:9px;background:#ffffff18;color:#fff;font-size:27px;line-height:1;cursor:pointer}
 .mp-more-menu{display:none;position:absolute;right:0;top:calc(100% + 7px);z-index:50;min-width:230px;max-height:75vh;overflow:auto;background:#fff;border:1px solid #d6e0ea;border-radius:10px;padding:7px;box-shadow:0 12px 32px #07182b55}
 .mp-more-menu.open{display:block}
@@ -12,7 +12,7 @@
 @media(max-width:600px){.topbar h2{font-size:15px}.mp-more-btn{width:40px;height:38px}.mp-more-menu{position:fixed;top:58px;right:10px;left:auto;min-width:min(280px,calc(100vw - 20px))}}
 </style><script src="/static/offline-sync.js"></script>
 </head>
-<body><header class="top"><div class="topbar"><h2>M/S. MULTI PLAZA — MANAGEMENT</h2><div class="mp-more-wrap"><button type="button" id="mpMoreBtn" class="mp-more-btn" aria-label="Open Multi Plaza menu" aria-expanded="false">⋮</button><div id="mpMoreMenu" class="mp-more-menu"><a href="/product" target="workspace">1. Product &amp; Price List</a><button type="button" id="mpDpPrice">2. Show / Hide DP Price</button><button type="button" id="mpInstallApp">3. Install Multi Plaza App</button><a href="/credit" target="workspace">Credit / Supply Register</a><a href="/installments" target="workspace">Installment Register</a><a href="/others" target="workspace">Others</a><a href="/quotation" target="workspace">Quotation</a><a href="/customers" target="workspace">Customers</a><a href="/backup" target="workspace">Data Backup</a></div></div></div><nav class="nav">
+<body><header class="top"><div class="topbar"><h2>M/S. MULTI PLAZA — MANAGEMENT</h2><div class="top-actions"><button type="button" id="mpRefreshTop" class="mp-refresh-top">↻ Refresh</button><div class="mp-more-wrap"><button type="button" id="mpMoreBtn" class="mp-more-btn" aria-label="Open Multi Plaza menu" aria-expanded="false">⋮</button><div id="mpMoreMenu" class="mp-more-menu"><a href="/product" target="workspace">1. Product &amp; Price List</a><button type="button" id="mpDpPrice">2. Show / Hide DP Price</button><button type="button" id="mpInstallApp">3. Install Multi Plaza App</button><button type="button" id="mpRefreshSection">↻ Refresh Current Section</button><a href="/credit" target="workspace">Credit / Supply Register</a><a href="/installments" target="workspace">Installment Register</a><a href="/others" target="workspace">Others</a><a href="/quotation" target="workspace">Quotation</a><a href="/customers" target="workspace">Customers</a><a href="/backup" target="workspace">Data Backup</a></div></div></div></div><nav class="nav">
 <a href="/product" target="workspace">Product &amp; Price List</a><a href="/credit" target="workspace">Credit / Supply Register</a><a href="/installments" target="workspace">Installment Register</a><a href="/others" target="workspace">Others</a><a href="/quotation" target="workspace">Quotation</a><a href="/customers" target="workspace">Customers</a><a href="/backup" target="workspace">Data Backup</a>
 <!-- Future section: add another navigation link and Flask route. -->
 </nav></header><iframe name="workspace" src="/product" title="Multi Plaza workspace"></iframe><script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(err=>console.warn("PWA service worker:",err)));}</script><button id="mpBackupButton" style="position:fixed;right:14px;bottom:54px;z-index:99998;background:#fff;border:1px solid #9ab0ca;border-radius:22px;padding:9px 13px;color:#173b68;font-weight:700;box-shadow:0 2px 8px #0002" onclick="MultiPlazaDownloadBackup()">⬇ Download All Data</button>
@@ -79,6 +79,48 @@
   if(installPrompt){installPrompt.prompt();const choice=await installPrompt.userChoice;installPrompt=null;if(choice.outcome==='accepted')alert('Installation started.');return;}
   alert('Install from your browser menu: Chrome/Edge ⋮ > Save and share or More tools > Install page as app / Create shortcut. If unavailable, open the website in Chrome or Edge and refresh once.');
  });
+ const refreshBtn=document.getElementById('mpRefreshSection');
+ const refreshTop=document.getElementById('mpRefreshTop');
+ const frame=document.querySelector('iframe[name="workspace"]');
+ let lastActivity=Date.now();
+ ['pointerdown','keydown','touchstart','input','focusin'].forEach(evt=>{
+   document.addEventListener(evt,()=>{lastActivity=Date.now();},true);
+ });
+ if(frame){
+   frame.addEventListener('load',()=>{
+     try{
+       const d=frame.contentDocument;
+       if(d){['pointerdown','keydown','touchstart','input','focusin'].forEach(evt=>d.addEventListener(evt,()=>{lastActivity=Date.now();},true));}
+     }catch(e){}
+   });
+ }
+ function refreshCurrentSection(){
+   if(!frame)return;
+   try{
+     const d=frame.contentDocument;
+     if(d && d.querySelector('input:focus,textarea:focus,select:focus,[contenteditable="true"]:focus')){
+       alert('A field is active. Finish editing or click outside before refreshing.');return;
+     }
+     frame.contentWindow.location.reload();
+     lastActivity=Date.now();
+   }catch(e){ frame.src=frame.src; }
+ }
+ if(refreshBtn)refreshBtn.addEventListener('click',()=>{
+   menu.classList.remove('open');btn.setAttribute('aria-expanded','false');refreshCurrentSection();
+ });
+ if(refreshTop)refreshTop.addEventListener('click',refreshCurrentSection);
+ // Desktop installed app only: check every 60 seconds; never interrupt recent activity or active editing.
+ const isInstalledDesktop=()=>window.matchMedia('(display-mode: standalone)').matches && !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+ if(isInstalledDesktop()){
+   setInterval(()=>{
+     if(Date.now()-lastActivity<20000)return;
+     try{
+       const d=frame&&frame.contentDocument;
+       if(d&&d.querySelector('input:focus,textarea:focus,select:focus,[contenteditable="true"]:focus'))return;
+       if(frame&&frame.contentWindow)frame.contentWindow.location.reload();
+     }catch(e){}
+   },60000);
+ }
  if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
 })();
 </script>
