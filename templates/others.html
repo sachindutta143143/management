@@ -8,6 +8,15 @@ input,textarea{width:100%;border:0;outline:0;background:transparent;padding:6px;
 td:focus-within{background:#eff6ff;outline:2px solid #2563eb;outline-offset:-2px}.muted{color:#64748b;font-size:12px}
 @media(max-width:600px){main{padding:8px}.panel{padding:9px}header{padding:12px}textarea{min-height:54px;height:54px;font-size:14px}}
 </style><script src="/static/offline-sync.js"></script>
+
+<style id="mobile-dashboard-values-visible">
+@media(max-width:700px){
+ .dashboard{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:7px}
+ .card{min-width:0;overflow:visible}
+ .card strong{white-space:normal !important;overflow:visible !important;text-overflow:clip !important;overflow-wrap:anywhere;word-break:break-word;font-size:clamp(16px,4.5vw,21px) !important;line-height:1.2}
+}
+</style>
+
 </head><body><header><h2 style="margin:0">OTHERS</h2><p style="margin:6px 0 0">Additional records / miscellaneous entries</p></header>
 <main><section class="panel"><div class="tools"><button id="add">+ Add Row</button><button class="light" id="save">Save Changes</button><span class="muted" id="status">Ready</span></div></section>
 <section class="panel"><div class="wrap"><table><thead><tr><th style="width:14%">Date</th><th style="width:22%">Customer / Name</th><th style="width:30%">Particulars</th><th style="width:14%">Amount</th><th style="width:20%">Remarks</th><th style="width:55px">Del.</th></tr></thead><tbody id="rows"></tbody></table></div></section></main>
