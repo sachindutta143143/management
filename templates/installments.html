@@ -79,7 +79,7 @@ tfoot td{background:#e8eff6;font-weight:bold}
 <tbody id="customers"></tbody>
 <tfoot><tr><td colspan="4">TOTAL</td><td class="money" id="footTotal">₹0.00</td><td class="money" id="footPaid">₹0.00</td><td class="money" id="footBalance">₹0.00</td><td colspan="2"></td></tr></tfoot>
 </table></div>
-<p class="note">Enter the machine total once. Choose the number of installments, then adjust each due date and amount. Record a payment whenever the customer pays. Payment amounts and dates are flexible.</p>
+<p class="note">Enter the machine total once. Choose the number of installments, then select each due date from the calendar and adjust the amount. Record a payment whenever the customer pays. Payment amounts and dates are flexible.</p>
 </main>
 
 <!-- Small in-page customer form; no browser prompt() dialogs -->
@@ -94,7 +94,7 @@ tfoot td{background:#e8eff6;font-weight:bold}
 <div class="field"><label>Advance Received (₹)</label><input id="fAdvance" type="number" min="0" placeholder="e.g. 20000"></div>
 <div class="field"><label>Advance Payment Date</label><input id="fAdvanceDate" type="text" inputmode="numeric" placeholder="DD-MM-YYYY"></div>
 <div class="field"><label>Installments for remaining balance</label><select id="fCount"><option value="1">1 installment</option><option value="2">2 installments</option><option value="3">3 installments</option><option value="4" selected>4 installments</option><option value="5">5 installments</option><option value="6">6 installments</option><option value="7">7 installments</option><option value="8">8 installments</option><option value="9">9 installments</option><option value="10">10 installments</option><option value="11">11 installments</option><option value="12">12 installments</option></select></div>
-<div class="field"><label>First Due Date</label><input id="fFirstDate" type="text" inputmode="numeric" placeholder="DD-MM-YYYY"></div>
+<div class="field"><label>First Due Date</label><input id="fFirstDate" type="date"></div>
 </div>
 <div class="schedule-title">Remaining balance installment plan — change every amount and date yourself</div>
 <div class="toolbar" style="margin:5px 0 7px">
@@ -103,7 +103,7 @@ tfoot td{background:#e8eff6;font-weight:bold}
 <span class="muted" id="planTotal">Scheduled: ₹0.00</span>
 </div>
 <div class="schedule-grid" id="scheduleGrid"></div>
-<div class="muted" style="margin-top:6px">Add as many installments as required. Edit each due date and amount individually. Select “Divide Remaining Equally” only when equal payments are preferred.</div>
+<div class="muted" style="margin-top:6px">Add as many installments as required. Select each due date using the calendar and edit the amount individually. Select “Divide Remaining Equally” only when equal payments are preferred.</div>
 </div>
 <div class="dialog-foot"><button data-close="customerModal">Cancel</button><button class="primary" id="saveCustomer">Save Customer</button></div>
 </div></div>
@@ -187,7 +187,7 @@ function buildPlan(){let count=Number($('fCount').value),total=remainingToSchedu
 function divideDraftEqually(){let count=draft.length,total=remainingToSchedule();if(!count)return;let each=Math.floor(total/count*100)/100;draft.forEach((p,i)=>p.amount=i===count-1?Math.round((total-each*(count-1))*100)/100:each);drawPlan()}
 function syncCountSelector(){let count=draft.length,sel=$('fCount');if(![...sel.options].some(o=>Number(o.value)===count)){let opt=document.createElement('option');opt.value=String(count);opt.textContent=count+' installments';sel.append(opt)}sel.value=String(count)}
 function addDraftInstallment(){let last=draft.length?draft[draft.length-1].date:getDateInput('fFirstDate')||today();draft.push({date:addMonth(last,1),amount:0,covered:0});syncCountSelector();drawPlan()}
-function drawPlan(){let box=$('scheduleGrid');box.innerHTML='';['No.','Due Date','Amount (₹)',''].forEach(t=>{let e=document.createElement('div');e.className='head';e.textContent=t;box.append(e)});draft.forEach((p,i)=>{let no=document.createElement('div');no.className='n';no.textContent=i+1;box.append(no);let d=document.createElement('input');d.type='text';d.inputMode='numeric';d.placeholder='DD-MM-YYYY';d.value=dateLabel(p.date||'')==='—'?'':dateLabel(p.date);d.onchange=()=>{let parsed=parseDate(d.value);if(!parsed){d.setCustomValidity('Use DD-MM-YYYY');d.reportValidity();d.setCustomValidity('');return}p.date=parsed;d.value=dateLabel(parsed);updatePlanTotal()};box.append(d);let a=document.createElement('input');a.type='number';a.min='0';a.step='0.01';a.value=p.amount;a.oninput=()=>{p.amount=a.value===''?'':num(a.value);updatePlanTotal()};box.append(a);let rm=document.createElement('button');rm.type='button';rm.className='red small';rm.textContent='Remove';rm.disabled=draft.length<=1;rm.onclick=()=>{draft.splice(i,1);syncCountSelector();drawPlan()};box.append(rm)});syncCountSelector();updatePlanTotal()}
+function drawPlan(){let box=$('scheduleGrid');box.innerHTML='';['No.','Due Date','Amount (₹)',''].forEach(t=>{let e=document.createElement('div');e.className='head';e.textContent=t;box.append(e)});draft.forEach((p,i)=>{let no=document.createElement('div');no.className='n';no.textContent=i+1;box.append(no);let d=document.createElement('input');d.type='date';d.value=parseDate(p.date||'')||'';d.onchange=()=>{if(!d.value){d.setCustomValidity('Please select a due date');d.reportValidity();d.setCustomValidity('');return}p.date=d.value;updatePlanTotal()};box.append(d);let a=document.createElement('input');a.type='number';a.min='0';a.step='0.01';a.value=p.amount;a.oninput=()=>{p.amount=a.value===''?'':num(a.value);updatePlanTotal()};box.append(a);let rm=document.createElement('button');rm.type='button';rm.className='red small';rm.textContent='Remove';rm.disabled=draft.length<=1;rm.onclick=()=>{draft.splice(i,1);syncCountSelector();drawPlan()};box.append(rm)});syncCountSelector();updatePlanTotal()}
 function updatePlanTotal(){let total=draft.reduce((s,p)=>s+num(p.amount),0),remaining=remainingToSchedule(),diff=remaining-total;$('planTotal').textContent='Scheduled: '+money(total)+' · '+(Math.abs(diff)<0.01?'Matches remaining balance':(diff>0?'Not yet scheduled: ':'Over scheduled by ')+money(Math.abs(diff)))}
 function saveCustomer(){let name=$('fName').value.trim(),total=Number($('fTotal').value),advance=num($('fAdvance').value);if(!name||!Number.isFinite(total)||total<=0){alert('Please enter the customer name and a valid machine amount.');return}if(advance>total){alert('Advance payment cannot exceed the total machine amount.');return}if(advance>0&&!getDateInput('fAdvanceDate')){alert('Please enter Advance Payment Date in DD-MM-YYYY format.');return}let remaining=total-advance;if(draft.length&&Math.abs(draft.reduce((s,p)=>s+num(p.amount),0)-remaining)>0.01){alert('The total of the installment amounts must equal the balance remaining after the advance. You can use “Divide Remaining Equally” to calculate the amounts automatically.');return}
 let c=editId?records.find(x=>x.id===editId):null;if(!c){c={id:'cust_'+Date.now(),payments:[],plan:[]};records.push(c)}

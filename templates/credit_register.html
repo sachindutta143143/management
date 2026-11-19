@@ -357,44 +357,34 @@
 <style id="mobile-responsive-final">@media(max-width:700px){html,body{width:100%;max-width:100%;overflow-x:hidden}header{padding:12px}main{padding:8px}.dashboard{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.card{padding:8px}.card strong{font-size:clamp(15px,4vw,19px);overflow-wrap:anywhere}.toolbar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.toolbar button,.toolbar .upload-button{width:100%;min-height:42px;padding:9px 5px;font-size:12px}.table-container{max-height:62vh;overflow:auto;-webkit-overflow-scrolling:touch}table{min-width:850px;table-layout:fixed}th{position:sticky;top:0}.cell{min-height:38px;height:38px;font-size:14px;padding:6px}.item-cell,.customer-cell{min-height:54px;height:54px;font-size:14px}td.calculated[data-calc="Total"]{font-size:17px!important}}</style>
 <script src="/static/offline-sync.js"></script>
 
-<style id="mobile-balance-due-visible">
+
+
+
+<style id="mobile-balance-due-visible-v2">
 @media (max-width:700px) {
-  /* Keep the table readable: scroll the full-width table, never squeeze every column. */
-  .table-container { overflow-x:auto !important; overflow-y:auto !important; }
-  .table-container table { min-width:1650px !important; table-layout:fixed !important; }
-  .table-container th:nth-child(16),
-  .table-container td:nth-child(16) {
-    position:sticky !important;
-    right:110px !important;
-    min-width:110px !important;
-    width:110px !important;
-    background:#e7f2fb !important;
-    box-shadow:-3px 0 5px rgba(15,45,75,.12);
-    z-index:4;
+  .table-container { width:100% !important; overflow-x:auto !important; overflow-y:auto !important; -webkit-overflow-scrolling:touch; }
+  .table-container table { width:1900px !important; min-width:1900px !important; table-layout:fixed !important; }
+  .table-container th, .table-container td { white-space:normal; }
+  /* Keep the three most important financial/date columns visible while scrolling. */
+  .table-container th:nth-child(9), .table-container td:nth-child(9) {
+    position:sticky !important; right:220px !important; width:110px !important; min-width:110px !important;
+    z-index:5; background:#e7f2fb !important; box-shadow:-2px 0 4px rgba(20,50,80,.12);
   }
-  .table-container th:nth-child(17),
-  .table-container td:nth-child(17) {
-    position:sticky !important;
-    right:0 !important;
-    min-width:110px !important;
-    width:110px !important;
-    background:#fff !important;
-    box-shadow:-3px 0 5px rgba(15,45,75,.12);
-    z-index:4;
+  .table-container th:nth-child(16), .table-container td:nth-child(16) {
+    position:sticky !important; right:110px !important; width:110px !important; min-width:110px !important;
+    z-index:6; background:#dcecf9 !important; box-shadow:-2px 0 4px rgba(20,50,80,.12);
   }
-  .table-container thead th:nth-child(16),
-  .table-container thead th:nth-child(17) {
-    background:#214e79 !important;
-    color:#fff !important;
-    z-index:7 !important;
+  .table-container th:nth-child(17), .table-container td:nth-child(17) {
+    position:sticky !important; right:0 !important; width:110px !important; min-width:110px !important;
+    z-index:7; background:#fff !important; box-shadow:-2px 0 4px rgba(20,50,80,.12);
   }
-  .table-container td:nth-child(16) .calculated,
-  .table-container td:nth-child(17) .cell {
-    font-size:14px !important;
-    font-weight:700 !important;
-    min-width:100px !important;
+  .table-container thead th:nth-child(9), .table-container thead th:nth-child(16),
+  .table-container thead th:nth-child(17) { background:#214e79 !important; color:#fff !important; z-index:9 !important; }
+  .table-container td:nth-child(9), .table-container td:nth-child(16) { font-size:15px !important; font-weight:700 !important; }
+  .table-container td:nth-child(9) .cell, .table-container td:nth-child(16) .cell {
+    font-size:15px !important; font-weight:700 !important; min-width:100px !important; line-height:1.25 !important;
   }
-  .table-container td:nth-child(16) { font-size:15px !important; }
+  .table-container td:nth-child(17) .cell { font-size:13px !important; min-width:100px !important; }
 }
 </style>
 
