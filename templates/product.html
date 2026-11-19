@@ -233,22 +233,22 @@ async function saveLocal(){
  }
 }
 async function loadLocal(){
+ let serverResponded=false;
  try{
-  const r=await fetch('/api/data/product_list');
+  const r=await fetch('/api/data/product_list',{cache:'no-store'});
   if(r.ok){
+   serverResponded=true;
    const d=await r.json();
    if(d && d.content){document.getElementById('content').innerHTML=d.content; if(d.header)document.querySelector('header').innerHTML=d.header; return;}
-   // Empty shared DB: restore this browser's saved catalogue to PostgreSQL.
-   const localContent=localStorage.getItem('multiPlazaPriceList');
-   const localHeader=localStorage.getItem('multiPlazaHeader');
-   if(localContent){
-     document.getElementById('content').innerHTML=localContent;
-     if(localHeader)document.querySelector('header').innerHTML=localHeader;
-     await fetch('/api/data/product_list',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:localContent,header:localHeader||''})});
-     return;
-   }
-  }
+   // Empty shared DB is authoritative. Do not republish stale browser data:
+   // it may contain products intentionally deleted from another device.
+   document.getElementById('content').innerHTML='';
+   localStorage.removeItem('multiPlazaPriceList');
+   localStorage.removeItem('multiPlazaHeader');
+   return;
+  } else { throw new Error('HTTP '+r.status); }
  }catch(e){}
+ if(serverResponded)return;
  let c=localStorage.getItem('multiPlazaPriceList'),h=localStorage.getItem('multiPlazaHeader');
  if(c)document.getElementById('content').innerHTML=c;
  if(h)document.querySelector('header').innerHTML=h;

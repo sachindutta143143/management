@@ -117,9 +117,8 @@ with app.app_context():
         if legacy is not None:
             if current is None:
                 db.session.add(model(id=1, payload=legacy.payload))
-            elif current.payload in (None, [], {}) and legacy.payload not in (None, [], {}):
-                # Safe recovery: populate only an empty destination; never replace live data.
-                current.payload = legacy.payload
+            # Once a dedicated section row exists, even an empty payload is authoritative.
+            # Re-importing legacy data into an empty row resurrects records the user deleted.
 
     combined = db.session.get(CreditSupplyRegisterData, 1)
     if combined is None:
@@ -150,20 +149,8 @@ with app.app_context():
             },
         )
         db.session.add(combined)
-    else:
-        # Recover legacy Credit/Supply records if the combined table exists but is empty.
-        current_payload = combined.payload or {"credit": [], "supply": []}
-        if not isinstance(current_payload, dict):
-            current_payload = {"credit": [], "supply": []}
-        if not current_payload.get("credit"):
-            old_credit = AppData.query.filter_by(data_key="credit_register").first()
-            if old_credit is not None and isinstance(old_credit.payload, list) and old_credit.payload:
-                current_payload["credit"] = old_credit.payload
-        if not current_payload.get("supply"):
-            old_supply = AppData.query.filter_by(data_key="supply_register").first()
-            if old_supply is not None and isinstance(old_supply.payload, list) and old_supply.payload:
-                current_payload["supply"] = old_supply.payload
-        combined.payload = current_payload
+    # Existing combined row is authoritative, including intentionally empty arrays.
+    # Do not restore from legacy app_data on every startup: that revives deleted rows.
     db.session.commit()
 
 
@@ -282,9 +269,15 @@ def app_data(key):
             return jsonify(row.payload)
         return jsonify({} if key in {"product_list", "quotation_data"} else [])
     if request.method == "DELETE":
-        if row is not None:
-            db.session.delete(row)
-            db.session.commit()
+        # Keep an explicit empty row as a deletion marker. Removing the row would
+        # let startup migration import the old legacy snapshot and resurrect data.
+        empty_payload = {} if key in {"product_list", "quotation_data"} else []
+        if row is None:
+            row = model(id=1, payload=empty_payload)
+            db.session.add(row)
+        else:
+            row.payload = empty_payload
+        db.session.commit()
         return jsonify(ok=True)
     payload = request.get_json(silent=True)
     if payload is None:

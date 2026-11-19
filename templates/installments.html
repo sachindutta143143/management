@@ -270,19 +270,20 @@ async function initialise(){
       serverLoaded=true;
       serverHadRecords=serverData.length>0;
       lastSharedSnapshot=JSON.stringify(serverData);
-      // Non-empty PostgreSQL is authoritative. If it is empty, recover local records if available.
-      records=serverHadRecords?serverData:localRecords;
+      // PostgreSQL is authoritative, including an intentionally empty register.
+      // Never restore stale browser data automatically after server-side deletion.
+      records=serverData;
     }
   }catch(e){console.warn('Installment database load failed; using local backup',e);}
   if(!serverLoaded)records=localRecords;
   if(!Array.isArray(records))records=[];
   records=records.map(c=>({...c,id:c.id||'cust_'+Math.random(),payments:Array.isArray(c.payments)?c.payments:[],plan:Array.isArray(c.plan)?c.plan:[]}));
   records.forEach(allocate);render();
-  if(serverLoaded&&!serverHadRecords&&records.length){
-    $('saveState').textContent='Recovering local records to database…';
-    persist();
-  }else if(!serverLoaded||!serverHadRecords){
-    if(records.length)persist();else $('saveState').textContent='No saved installment records found';
+  if(serverLoaded&&!serverHadRecords){
+    try{localStorage.setItem(KEY,JSON.stringify(records));}catch(e){}
+    $('saveState').textContent='Connected to database — no saved installment records';
+  }else if(!serverLoaded){
+    $('saveState').textContent=records.length?'Database unavailable — showing this device backup':'Could not connect to database';
   }else{
     // Keep the browser backup refreshed from the authoritative database copy.
     try{localStorage.setItem(KEY,JSON.stringify(records));}catch(e){}

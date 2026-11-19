@@ -1,0 +1,22 @@
+MULTI PLAZA DATA SAFETY UPDATE
+
+Changes in this build:
+1. An intentionally empty server register is now treated as authoritative.
+2. Credit, Installment, Others and Product pages no longer automatically upload an old
+   browser localStorage copy when the shared database is empty.
+3. Startup migration no longer repopulates an existing empty section from legacy data.
+4. Section reset/delete keeps an empty database row as a deletion marker, so a restart
+   cannot re-import the old legacy snapshot merely because the active row was deleted.
+5. Existing populated database rows are not cleared or rewritten by this update.
+
+IMPORTANT LIMITATION:
+This update prevents the automatic stale-browser restore / legacy migration resurrection
+path. It does NOT yet implement full per-record conflict resolution for simultaneous edits
+from two devices. Avoid editing the same register from two devices at the exact same time
+until that separate revision/record-level sync upgrade is implemented.
+
+RAILWAY:
+- Keep the existing PostgreSQL service and its data volume.
+- Ensure the app service DATABASE_URL variable references the PostgreSQL service.
+- Deploy this project without deleting/recreating the PostgreSQL service.
+- A live Railway deployment was not performed as part of this package build.

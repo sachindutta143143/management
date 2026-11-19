@@ -1683,30 +1683,27 @@
       if (!Array.isArray(saved)) throw new Error("Invalid shared register response");
       const serverHasData = saved.some(hasData);
       const localHasData = rows.some(hasData);
-      if (serverHasData) {
-        const snapshot = JSON.stringify(saved);
-        const activeInRegister = $("tableBody").contains(document.activeElement);
-        const userIsBusy = activeInRegister || (Date.now() - lastUserActivity < 20000);
-        if (initial || (!userIsBusy && !localWritePending && snapshot !== lastSharedSnapshot)) {
-          rows = saved.map(row => ({ ...emptyRow(), ...row }));
-          sortRowsByBillDate();
-          renderTable();
-          updateAllCalculations();
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
-          lastSharedSnapshot = JSON.stringify(rows);
-          $("message").textContent = initial ? "Loaded from shared database." : "Updated from another device.";
-        }
-      } else if (initial && localHasData) {
-        // Only restore this browser's old data when the server section is empty.
-        const recovered = await fetch("/api/data/credit_register", {
-          method: "PUT", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(rows)
-        });
-        if (!recovered.ok) throw new Error("Could not recover this browser's records");
-        lastSharedSnapshot = JSON.stringify(rows);
-        $("message").textContent = "Older browser records recovered to shared database.";
-      } else if (initial) {
+      const snapshot = JSON.stringify(saved);
+      const serverChanged = snapshot !== lastSharedSnapshot;
+      const activeInRegister = $("tableBody").contains(document.activeElement);
+      const userIsBusy = activeInRegister || (Date.now() - lastUserActivity < 20000);
+      if (initial || (serverChanged && !userIsBusy && !localWritePending)) {
+        // An empty server array is a valid deletion state, not a reason to restore local data.
+        rows = saved.length ? saved.map(row => ({ ...emptyRow(), ...row })) : Array.from({ length: 20 }, emptyRow);
+        sortRowsByBillDate();
+        renderTable();
+        updateAllCalculations();
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(rows)); } catch (_) {}
+        lastSharedSnapshot = snapshot;
+        $("message").textContent = initial ? (serverHasData ? "Loaded from shared database." : "Connected to shared database. No saved records yet.") : "Updated from another device.";
+      } else if (!serverHasData && initial) {
+        // Empty server data is authoritative. Do not upload stale localStorage here:
+        // a row deleted on another device must not reappear after refresh/restart.
+        rows = Array.from({ length: 20 }, emptyRow);
+        renderTable();
+        updateAllCalculations();
         lastSharedSnapshot = JSON.stringify(saved);
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(rows)); } catch (_) {}
         $("message").textContent = "Connected to shared database. No saved records yet.";
       }
     } catch (error) {

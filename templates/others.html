@@ -60,9 +60,10 @@ async function loadInitial(){
     const r=await fetch('/api/data/others_register',{cache:'no-store'});
     if(!r.ok)throw Error('HTTP '+r.status);
     const server=await r.json();if(!Array.isArray(server))throw Error('Invalid server data');
-    if(server.length){data=server.map(row);lastSharedSnapshot=JSON.stringify(server);setStatus('Loaded from shared database');}
-    else if(local.length){data=local;setStatus('Recovering this browser backup to shared database…');await save();}
-    else{data=[];lastSharedSnapshot='[]';setStatus('Connected — no records yet');}
+    data=server.map(row);
+    lastSharedSnapshot=JSON.stringify(server);
+    setStatus(server.length?'Loaded from shared database':'Connected — no records yet');
+    try{localStorage.setItem(KEY,JSON.stringify(data));}catch(e){}
   }catch(e){data=local;setStatus(local.length?'Server unavailable — showing this browser backup':'Could not connect to shared database');console.error('Others initial load failed:',e)}
   initialized=true;render();
   try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}
