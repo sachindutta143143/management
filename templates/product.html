@@ -240,11 +240,10 @@ async function loadLocal(){
    serverResponded=true;
    const d=await r.json();
    if(d && d.content){document.getElementById('content').innerHTML=d.content; if(d.header)document.querySelector('header').innerHTML=d.header; return;}
-   // Empty shared DB is authoritative. Do not republish stale browser data:
-   // it may contain products intentionally deleted from another device.
-   document.getElementById('content').innerHTML='';
-   localStorage.removeItem('multiPlazaPriceList');
-   localStorage.removeItem('multiPlazaHeader');
+   // Empty shared DB is authoritative, but keep the original HTML template intact.
+   // Clearing #content here removed the built-in product catalogue on first launch.
+   // Keep any old browser backup for manual recovery, but never auto-publish it.
+   document.getElementById('status').textContent='Connected to shared database. Showing the default product list.';
    return;
   } else { throw new Error('HTTP '+r.status); }
  }catch(e){}

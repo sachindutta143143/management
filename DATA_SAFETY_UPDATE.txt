@@ -20,3 +20,10 @@ RAILWAY:
 - Ensure the app service DATABASE_URL variable references the PostgreSQL service.
 - Deploy this project without deleting/recreating the PostgreSQL service.
 - A live Railway deployment was not performed as part of this package build.
+
+6. Product page preserves its built-in default catalogue when the shared product row is empty; it no longer clears the static template.
+7. Offline full-section PUT/DELETE operations are no longer queued for automatic replay. Legacy queued /api/data snapshots are discarded on reconnect because replaying them can overwrite newer shared data. Offline section edits must be reviewed and saved again after reconnecting.
+8. Added local API checks for Credit, Supply, Installment, Others, Quotation, Product and deletion markers.
+
+TESTING NOTE:
+Python and JavaScript syntax checks were run while building this package. Runtime API tests could not be executed in this build environment because Flask is not installed here; run `python test_database.py` after installing requirements locally.

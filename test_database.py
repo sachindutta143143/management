@@ -29,6 +29,8 @@ def check(name, condition, detail=""):
 
 # Register modules: PUT -> GET must return exactly the submitted data.
 cases = [
+    ("credit_register", [{"id": "test-c-1", "customer": "Test Credit"}]),
+    ("supply_register", [{"id": "test-s-1", "customer": "Test Supply"}]),
     ("installment_register", [{"id": "test-i-1", "name": "Test Installment", "total": 12000}]),
     ("others_register", [{"date": "2026-11-17", "customer": "Test Other", "amount": "500"}]),
     ("quotation_data", {"controls": {"test": True}, "items": [{"description": "Test item"}]}),
@@ -39,6 +41,14 @@ for key, payload in cases:
     get = client.get(f"/api/data/{key}")
     check(key, put.status_code == 200 and get.status_code == 200 and get.get_json() == payload,
           f"PUT={put.status_code}, GET={get.status_code}")
+
+# DELETE must leave an authoritative empty marker, not remove the database row.
+for key, payload in cases:
+    deleted = client.delete(f"/api/data/{key}")
+    after = client.get(f"/api/data/{key}")
+    expected = {} if key in {"product_list", "quotation_data"} else []
+    check(f"{key} delete marker", deleted.status_code == 200 and after.status_code == 200 and
+          after.get_json() == expected, f"DELETE={deleted.status_code}, GET={after.status_code}")
 
 # Customer create then read.
 created = client.post("/api/customers", json={"name": "Test Customer", "mobile": "1234567890"})

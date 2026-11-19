@@ -26,11 +26,29 @@ window.fetch=async function(input,init={}){
   if(method==='POST'&&url.pathname==='/api/customers'&&parsed){parsed.id=parsed.id||('offline-'+(crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random().toString(16).slice(2)));body=JSON.stringify(parsed)}
   const mutation={url:url.pathname+url.search,method,body:body||null,headers:[...headers.entries()],createdAt:new Date().toISOString()};
   try{const r=await nativeFetch(url.toString(),{...init,method,body,headers});if(!r.ok)throw new Error('Server returned '+r.status);if(method==='PUT'&&url.pathname.startsWith('/api/data/')){try{await put(key(url.pathname),parsed)}catch(_){}}return r}
-  catch(err){const q=queue();q.push(mutation);setQueue(q);if(method==='POST'&&url.pathname==='/api/customers'&&parsed)return new Response(JSON.stringify(parsed),{status:201,headers:{'Content-Type':'application/json','X-Offline-Queued':'1'}});return new Response(JSON.stringify({ok:true,offlineQueued:true}),{status:200,headers:{'Content-Type':'application/json','X-Offline-Queued':'1'}})}
+  catch(err){
+   // Full-section snapshots are unsafe to replay after another device edits/deletes data.
+   // Keep offline section changes local instead of silently overwriting shared records later.
+   if(url.pathname.startsWith('/api/data/')){
+    return new Response(JSON.stringify({ok:false,offline:true,error:'Not synced: reconnect and review this section before saving.'}),{status:503,headers:{'Content-Type':'application/json','X-Offline-Local-Only':'1'}});
+   }
+   const q=queue();q.push(mutation);setQueue(q);
+   if(method==='POST'&&url.pathname==='/api/customers'&&parsed)return new Response(JSON.stringify(parsed),{status:201,headers:{'Content-Type':'application/json','X-Offline-Queued':'1'}});
+   return new Response(JSON.stringify({ok:true,offlineQueued:true}),{status:200,headers:{'Content-Type':'application/json','X-Offline-Queued':'1'}})
+  }
  }
  return nativeFetch(input,init)
 };
-async function sync(){if(!navigator.onLine)return;let q=queue();if(!q.length){status();return}let remaining=[];for(const m of q){try{const r=await nativeFetch(m.url,{method:m.method,headers:new Headers(m.headers),body:m.method==='GET'||m.method==='DELETE'?undefined:m.body});if(!r.ok)throw Error('HTTP '+r.status)}catch(e){remaining.push(m)}}setQueue(remaining);if(!remaining.length){window.dispatchEvent(new CustomEvent('mp-sync-complete'));}
+async function sync(){
+ if(!navigator.onLine)return;
+ // Discard legacy queued full-register snapshots; they may predate other-device edits/deletes.
+ let q=queue();
+ const safeQueue=q.filter(m=>!String(m.url||'').startsWith('/api/data/'));
+ if(safeQueue.length!==q.length){q=safeQueue;setQueue(q);}
+ if(!q.length){status();return}
+ let remaining=[];
+ for(const m of q){try{const r=await nativeFetch(m.url,{method:m.method,headers:new Headers(m.headers),body:m.method==='GET'||m.method==='DELETE'?undefined:m.body});if(!r.ok)throw Error('HTTP '+r.status)}catch(e){remaining.push(m)}}
+ setQueue(remaining);if(!remaining.length){window.dispatchEvent(new CustomEvent('mp-sync-complete'));}
 }
 function dailySnapshot(){try{const day=new Date().toISOString().slice(0,10);const old=localStorage.getItem('mp_last_backup_day');if(old===day)return;const snap={createdAt:new Date().toISOString(),note:'Automatic local snapshot of browser-stored Multi Plaza data',localStorage:{}};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&(/multiPlaza|mp_|quotation/i.test(k)))snap.localStorage[k]=localStorage.getItem(k)}localStorage.setItem('mp_backup_'+day,JSON.stringify(snap));localStorage.setItem('mp_last_backup_day',day)}catch(_){}}
 window.addEventListener('online',()=>{sync();status()});window.addEventListener('offline',status);window.addEventListener('load',()=>{dailySnapshot();status();sync();if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});});setInterval(()=>{if(navigator.onLine)sync()},15000);
