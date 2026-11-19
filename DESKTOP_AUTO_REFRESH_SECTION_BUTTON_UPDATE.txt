@@ -1,0 +1,10 @@
+MULTI PLAZA — SECTION REFRESH + DESKTOP AUTO REFRESH
+
+- Every module page now has its own bottom-right Refresh button.
+- The old Refresh Current Page item was removed from the three-dot menu.
+- Installed desktop/PWA mode checks for a safe refresh every 60 seconds.
+- Refresh is deferred while the user has interacted in the last 20 seconds, while an editable field is focused, while the page is hidden, or while a modal is open.
+- Normal browser tabs do not auto-reload.
+- Existing PostgreSQL records and local browser backups are not deleted or reset.
+
+After deployment, close and reopen the installed desktop app once so the updated page and service worker are loaded.

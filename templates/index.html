@@ -12,7 +12,7 @@
 @media(max-width:600px){.topbar h2{font-size:15px}.mp-more-btn{width:40px;height:38px}.mp-more-menu{position:fixed;top:58px;right:10px;left:auto;min-width:min(280px,calc(100vw - 20px))}}
 </style><script src="/static/offline-sync.js"></script>
 </head>
-<body><header class="top"><div class="topbar"><h2>M/S. MULTI PLAZA — MANAGEMENT</h2><div class="mp-more-wrap"><button type="button" id="mpMoreBtn" class="mp-more-btn" aria-label="Open Multi Plaza menu" aria-expanded="false">⋮</button><div id="mpMoreMenu" class="mp-more-menu"><a href="/product" target="workspace">1. Product &amp; Price List</a><button type="button" id="mpDpPrice">2. Show / Hide DP Price</button><button type="button" id="mpInstallApp">3. Install Multi Plaza App</button><button type="button" id="mpRefreshPage">↻ Refresh Current Page</button><a href="/credit" target="workspace">Credit / Supply Register</a><a href="/installments" target="workspace">Installment Register</a><a href="/others" target="workspace">Others</a><a href="/quotation" target="workspace">Quotation</a><a href="/customers" target="workspace">Customers</a><a href="/backup" target="workspace">Data Backup</a></div></div></div><nav class="nav">
+<body><header class="top"><div class="topbar"><h2>M/S. MULTI PLAZA — MANAGEMENT</h2><div class="mp-more-wrap"><button type="button" id="mpMoreBtn" class="mp-more-btn" aria-label="Open Multi Plaza menu" aria-expanded="false">⋮</button><div id="mpMoreMenu" class="mp-more-menu"><a href="/product" target="workspace">1. Product &amp; Price List</a><button type="button" id="mpDpPrice">2. Show / Hide DP Price</button><button type="button" id="mpInstallApp">3. Install Multi Plaza App</button><a href="/credit" target="workspace">Credit / Supply Register</a><a href="/installments" target="workspace">Installment Register</a><a href="/others" target="workspace">Others</a><a href="/quotation" target="workspace">Quotation</a><a href="/customers" target="workspace">Customers</a><a href="/backup" target="workspace">Data Backup</a></div></div></div><nav class="nav">
 <a href="/product" target="workspace">Product &amp; Price List</a><a href="/credit" target="workspace">Credit / Supply Register</a><a href="/installments" target="workspace">Installment Register</a><a href="/others" target="workspace">Others</a><a href="/quotation" target="workspace">Quotation</a><a href="/customers" target="workspace">Customers</a><a href="/backup" target="workspace">Data Backup</a>
 <!-- Future section: add another navigation link and Flask route. -->
 </nav></header><iframe name="workspace" src="/product" title="Multi Plaza workspace"></iframe><script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(err=>console.warn("PWA service worker:",err)));}</script><button id="mpBackupButton" style="position:fixed;right:14px;bottom:54px;z-index:99998;background:#fff;border:1px solid #9ab0ca;border-radius:22px;padding:9px 13px;color:#173b68;font-weight:700;box-shadow:0 2px 8px #0002" onclick="MultiPlazaDownloadBackup()">⬇ Download All Data</button>
@@ -71,20 +71,6 @@
     alert('Product List is not available right now. Please refresh the page.');
    }
   }catch(e){alert('Please refresh the page and try again.');}
- });
- const refreshPage=document.getElementById('mpRefreshPage');
- if(refreshPage)refreshPage.addEventListener('click',()=>{
-  menu.classList.remove('open');btn.setAttribute('aria-expanded','false');
-  const frame=document.querySelector('iframe[name="workspace"]');
-  try{
-   if(frame&&frame.contentWindow){
-    // Reload only the active module inside the workspace; keep the dashboard open.
-    frame.contentWindow.location.reload();
-   }else{window.location.reload();}
-  }catch(e){
-   if(frame&&frame.src){const current=frame.src;frame.src=current;}
-   else{window.location.reload();}
-  }
  });
  const install=document.getElementById('mpInstallApp');
  if(install)install.addEventListener('click',async()=>{
