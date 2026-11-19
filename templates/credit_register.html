@@ -591,12 +591,14 @@
   // Order No. and Bill No. are optional and do not trigger sorting.
   // This prevents entering the date first from moving the row away mid-entry.
   function isReadyToSort(row) {
+    // Require all five user-entered fields. Date must be a real calendar date;
+    // rate and quantity must be valid non-negative numbers. Total is automatic.
     return Boolean(
-      String(row.billDate || '').trim() &&
+      parseDate(row.billDate) &&
       String(row.customer || '').trim() &&
       String(row.item || '').trim() &&
-      String(row.rate || '').trim() &&
-      String(row.qty || '').trim()
+      String(row.rate ?? '').trim() && validNumber(row.rate) &&
+      String(row.qty ?? '').trim() && validNumber(row.qty)
     );
   }
 
@@ -714,6 +716,15 @@
     if (!iso) return String(value ?? "");
     const [y, m, d] = iso.split("-");
     return `${d}-${m}-${y}`;
+  }
+
+  // While typing a date, insert separators automatically (DD-MM-YYYY).
+  // Also accepts pasted values with slashes or hyphens.
+  function formatDateWhileTyping(value) {
+    const digits = String(value ?? "").replace(/\D/g, "").slice(0, 8);
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 4) return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+    return `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4)}`;
   }
 
   function today() {
@@ -1017,6 +1028,20 @@
     const rowIndex = Number(input.dataset.row);
     const key = input.dataset.key;
 
+    if (dateKeys.includes(key)) {
+      const oldValue = input.value;
+      const oldCaret = input.selectionStart ?? oldValue.length;
+      const formatted = formatDateWhileTyping(oldValue);
+      if (formatted !== oldValue) {
+        const digitsBeforeCaret = oldValue.slice(0, oldCaret).replace(/\D/g, "").length;
+        input.value = formatted;
+        let caret = digitsBeforeCaret;
+        if (digitsBeforeCaret > 2) caret++;
+        if (digitsBeforeCaret > 4) caret++;
+        input.setSelectionRange(Math.min(caret, formatted.length), Math.min(caret, formatted.length));
+      }
+    }
+
     rows[rowIndex][key] = input.value;
 
     if (numericKeys.includes(key)) {
@@ -1070,29 +1095,38 @@
       }
     }
 
-    // Sort only after all required fields are complete. If the user clicked
-    // another cell in the same table, preserve that intended next target across
-    // the row reorder so one click is enough and focus is not lost.
+    // Sort only after all required fields are complete. Reorder the existing
+    // table rows in-place instead of rebuilding the table: this preserves the
+    // browser's active input, click target, caret and one-click navigation.
     if (["billDate", "customer", "item", "rate", "qty"].includes(key) && isReadyToSort(rows[rowIndex])) {
+      const tbody = $("tableBody");
+      const rowElements = new Map();
+      tbody.querySelectorAll("tr[data-row]").forEach(tr => {
+        const oldIndex = Number(tr.dataset.row);
+        if (rows[oldIndex]) rowElements.set(rows[oldIndex], tr);
+      });
       const before = rows.slice();
-      const nextTarget = event.relatedTarget && event.relatedTarget.classList &&
-        event.relatedTarget.classList.contains("cell") &&
-        event.relatedTarget.closest("#tableBody") ? {
-          row: rows[Number(event.relatedTarget.dataset.row)],
-          key: event.relatedTarget.dataset.key
-        } : null;
       sortRowsByBillDate();
       if (rows.some((row, index) => row !== before[index])) {
-        renderTable();
+        rows.forEach((row, newIndex) => {
+          const tr = rowElements.get(row);
+          if (!tr) return;
+          tr.dataset.row = String(newIndex);
+          tr.querySelectorAll(".cell").forEach(cell => {
+            cell.dataset.row = String(newIndex);
+            cell.setAttribute("aria-label", `${columns[Number(cell.dataset.col)].label}, row ${newIndex + 1}`);
+          });
+          const deleteButton = tr.querySelector("[data-delete-row]");
+          if (deleteButton) deleteButton.dataset.deleteRow = String(newIndex);
+          const serial = tr.querySelector(".serial");
+          if (serial) serial.textContent = isReadyToSort(row)
+            ? String(rows.slice(0, newIndex + 1).filter(isReadyToSort).length)
+            : "";
+          tbody.appendChild(tr);
+        });
+        rows.forEach((_, index) => updateRowCalculation(index));
+        updateDashboard();
         scheduleSave();
-        if (nextTarget && nextTarget.row) {
-          const newRowIndex = rows.indexOf(nextTarget.row);
-          const nextInput = newRowIndex >= 0
-            ? Array.from($("tableBody").querySelectorAll(".cell")).find(el =>
-                Number(el.dataset.row) === newRowIndex && el.dataset.key === nextTarget.key)
-            : null;
-          if (nextInput) nextInput.focus();
-        }
       }
     }
   });
