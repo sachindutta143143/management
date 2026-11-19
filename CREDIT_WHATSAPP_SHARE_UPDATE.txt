@@ -1,0 +1,19 @@
+CREDIT / SUPPLY REGISTER – PHONE NUMBER + WHATSAPP SHARE
+
+Changes:
+- Added a Phone Number field immediately after Remarks.
+- Added a WhatsApp Share button for every row.
+- The share message includes order/bill details, customer, item, rate, quantity,
+  total, all three received-payment amounts and their notes, balance/due,
+  due date, and remarks.
+- 10-digit Indian mobile numbers are automatically prefixed with country code 91.
+- WhatsApp sharing works in view mode; entering/changing phone numbers requires edit mode.
+- Phone number is included in the existing row JSON save and Excel export/import.
+- Existing rows are preserved; phone is blank until entered. No records or tables are deleted.
+
+After deployment:
+1. Open Credit / Supply Register.
+2. Turn Edit Mode ON.
+3. Enter the customer's mobile number in Phone Number.
+4. Save the register.
+5. Click Share in that row to open WhatsApp with the full details prefilled.

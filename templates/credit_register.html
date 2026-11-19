@@ -118,6 +118,8 @@
     .gray {
       background: #64748b;
     }
+    .whatsapp-cell { text-align: center; padding: 2px; }
+    .whatsapp-button { background: #16a34a; padding: 6px 7px; font-size: 10px; white-space: nowrap; }
 
     .upload-button input {
       display: none;
@@ -445,6 +447,8 @@
         <col style="width:7%">
         <col style="width:8%">
         <col style="width:6%">
+        <col style="width:6%">
+        <col style="width:4%">
         <col style="width:3%">
       </colgroup>
 
@@ -465,6 +469,8 @@
           <th>Balance / Due</th>
           <th>Due Date</th>
           <th>Remarks</th>
+          <th>Phone Number</th>
+          <th>WhatsApp</th>
           <th>Del.</th>
         </tr>
       </thead>
@@ -532,7 +538,8 @@
     { key: "received3", label: "Payment Received 3" },
     { key: null, label: "Balance" },
     { key: "dueDate", label: "Due Date" },
-    { key: "remarks", label: "Remarks" }
+    { key: "remarks", label: "Remarks" },
+    { key: "phone", label: "Phone Number" }
   ];
 
   const numericKeys = [
@@ -561,7 +568,8 @@
       received3: "",
       received3Remark: "",
       dueDate: "",
-      remarks: ""
+      remarks: "",
+      phone: ""
     };
   }
 
@@ -801,7 +809,8 @@
 
     const input = document.createElement(["item","customer"].includes(column.key) ? "textarea" : "input");
     input.className = "cell" + (column.key === "item" ? " item-cell" : column.key === "customer" ? " customer-cell" : "");
-    if (!["item","customer"].includes(column.key)) input.type = "text";
+    if (!["item","customer"].includes(column.key)) input.type = column.key === "phone" ? "tel" : "text";
+    if (column.key === "phone") { input.inputMode = "tel"; input.placeholder = "Mobile number"; }
     if (column.key === "item") { input.rows = 2; input.placeholder = "Enter item details..."; }
     if (column.key === "customer") { input.rows = 2; input.placeholder = "Customer name / second line..."; }
     input.value = dateKeys.includes(column.key) ? displayDate(row[column.key]) : (row[column.key] ?? "");
@@ -848,6 +857,17 @@
 
         tr.appendChild(td);
       });
+
+      const whatsappCell = document.createElement("td");
+      whatsappCell.className = "whatsapp-cell";
+      const whatsappButton = document.createElement("button");
+      whatsappButton.type = "button";
+      whatsappButton.className = "whatsapp-button";
+      whatsappButton.textContent = "Share";
+      whatsappButton.dataset.whatsappRow = rowIndex;
+      whatsappButton.setAttribute("aria-label", `Share row ${rowIndex + 1} on WhatsApp`);
+      whatsappCell.appendChild(whatsappButton);
+      tr.appendChild(whatsappCell);
 
       const deleteCell = document.createElement("td");
       deleteCell.className = "delete-cell";
@@ -1121,8 +1141,48 @@
       "Cells pasted. Please check dates and amounts. Calculated cells were skipped.";
   });
 
-  // Delete one row only.
+  function shareCreditRowOnWhatsApp(rowIndex) {
+    const row = rows[rowIndex];
+    if (!row) return;
+    let phone = String(row.phone || "").replace(/\D/g, "");
+    if (!phone) {
+      alert("Please enter the customer's phone number first.");
+      const phoneInput = $("tableBody").querySelector(`input[data-row="${rowIndex}"][data-key="phone"]`);
+      if (phoneInput) phoneInput.focus();
+      return;
+    }
+    // For Indian 10-digit mobile numbers, add country code 91.
+    if (phone.length === 10) phone = "91" + phone;
+    const lines = [
+      "MULTI PLAZA – CREDIT / SUPPLY DETAILS",
+      `Order No.: ${row.orderNo || "-"}`,
+      `Bill No.: ${row.billNo || "-"}`,
+      `Bill Date: ${displayDate(row.billDate) || "-"}`,
+      `Customer: ${row.customer || "-"}`,
+      `Item: ${row.item || "-"}`,
+      `Rate: ${row.rate || "-"}`,
+      `Quantity: ${row.qty || "-"}`,
+      `Total: ${money(total(row))}`,
+      `Payment 1: ${row.received || 0}${row.receivedRemark ? " (" + row.receivedRemark + ")" : ""}`,
+      `Payment 2: ${row.received2 || 0}${row.received2Remark ? " (" + row.received2Remark + ")" : ""}`,
+      `Payment 3: ${row.received3 || 0}${row.received3Remark ? " (" + row.received3Remark + ")" : ""}`,
+      `Balance / Due: ${money(balance(row))}`,
+      `Due Date: ${displayDate(row.dueDate) || "-"}`,
+      `Remarks: ${row.remarks || "-"}`,
+      "",
+      "Multi Plaza"
+    ];
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(lines.join("\n"))}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  // WhatsApp sharing works in view mode too; deletion remains edit-mode only.
   $("tableBody").addEventListener("click", event => {
+    const shareIndex = event.target.dataset.whatsappRow;
+    if (shareIndex !== undefined) {
+      shareCreditRowOnWhatsApp(Number(shareIndex));
+      return;
+    }
     if (!editMode) return;
     const index = event.target.dataset.deleteRow;
 
@@ -1186,7 +1246,8 @@
     "Payment Received 3",
     "Balance",
     "Due Date",
-    "Remarks"
+    "Remarks",
+    "Phone Number"
   ];
 
   function downloadWorkbook(data, filename) {
@@ -1244,7 +1305,8 @@
         number(row.received3),
         balance(row),
         row.dueDate,
-        row.remarks
+        row.remarks,
+        row.phone
       ]);
 
     downloadWorkbook(data, "others-register.xlsx");
@@ -1425,7 +1487,8 @@
 
           remarks: String(
             get(source, "remarks", "remark")
-          ).trim()
+          ).trim(),
+          phone: String(get(source, "phonenumber", "phone", "mobile", "mobilenumber", "contactnumber")).trim()
         });
       });
 
