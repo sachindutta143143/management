@@ -1,0 +1,10 @@
+PAYMENT 4, 5, 6 - ON-DEMAND DISPLAY
+
+Credit / Supply Register now shows Payment 1, 2, and 3 by default.
+Payment 4, 5, and 6 columns and their dashboard summary cards are hidden initially.
+Use the '+ More Payments (4-6)' button to show them in one click.
+Use 'Hide Payments (4-6)' to collapse them again.
+
+The underlying Payment 4-6 fields, calculations, database payload, WhatsApp details,
+and Excel import/export columns remain available. This is a display-only change;
+no existing payment values or database records are removed or reset.

@@ -1,0 +1,7 @@
+MULTI PLAZA CLICK RESPONSE FIX
+
+Issue: A full-screen backup reminder was automatically displayed about 1.2 seconds after page load and whenever the browser tab became visible. Its transparent dark overlay covered the whole screen (z-index 100000), so the first click could land on the overlay instead of the control underneath. This made users click a second time.
+
+Fix: Removed the automatic blocking reminder overlay. The manual “Download All Data” backup button remains available. No business data, database tables, or records are changed by this fix.
+
+Deploy this complete project and hard-refresh the browser (Ctrl+Shift+R). On mobile, close and reopen the installed app or refresh the page.

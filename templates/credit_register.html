@@ -220,6 +220,12 @@
 
     /* Each payment has its own amount and note field underneath it. */
     td:has(.payment-cell-wrap) { height: auto; min-height: 76px; vertical-align: top; }
+    /* Payment 4-6 stay hidden until the user requests them. */
+    .optional-payment-column { display: none; }
+    body.show-extra-payments .optional-payment-column { display: table-cell; }
+    .extra-payment-summary { display: none; }
+    body.show-extra-payments .extra-payment-summary { display: block; }
+    #toggleExtraPayments { white-space: nowrap; }
     .payment-cell-wrap { display: flex; flex-direction: column; min-width: 88px; }
     .payment-cell-wrap .payment-amount { height: 30px; font-weight: 600; }
     .payment-cell-wrap .payment-note {
@@ -379,6 +385,10 @@
       <strong id="totalPayment3">₹0.00</strong>
     </div>
 
+    <div class="card extra-payment-summary"><span>Payment Received 4</span><strong id="totalPayment4">₹0.00</strong></div>
+    <div class="card extra-payment-summary"><span>Payment Received 5</span><strong id="totalPayment5">₹0.00</strong></div>
+    <div class="card extra-payment-summary"><span>Payment Received 6</span><strong id="totalPayment6">₹0.00</strong></div>
+
     <div class="card">
       <span>Total Balance</span>
       <strong id="totalBalance">₹0.00</strong>
@@ -398,6 +408,7 @@
   <!-- Buttons -->
   <div class="toolbar">
     <button type="button" id="editModeToggle" class="green" aria-pressed="true">Edit: ON</button>
+    <button type="button" id="toggleExtraPayments" class="gray" aria-expanded="false">＋ More Payments (4–6)</button>
     <button type="button" id="addRows">+ Add 20 Rows</button>
 
     <label class="upload-button green">
@@ -422,7 +433,7 @@
 
   <p class="help">
     <b>Total = Rate × Qty</b> &nbsp;|&nbsp;
-    <b>Balance = Total − Payment 1 − Payment 2 − Payment 3</b>.
+    <b>Balance = Total − Payment 1 − Payment 2 − Payment 3 − Payment 4 − Payment 5 − Payment 6</b>.
     Blue cells are calculated automatically.
   </p>
 
@@ -466,6 +477,9 @@
           <th>Payment Received 1</th>
           <th>Payment Received 2</th>
           <th>Payment Received 3</th>
+          <th class="optional-payment-column">Payment Received 4</th>
+          <th class="optional-payment-column">Payment Received 5</th>
+          <th class="optional-payment-column">Payment Received 6</th>
           <th>Balance / Due</th>
           <th>Due Date</th>
           <th>Remarks</th>
@@ -520,6 +534,17 @@
     applyEditMode();
   });
 
+  // Keep the register compact: reveal Payment 4-6 only on demand.
+  let showExtraPayments = false;
+  $("toggleExtraPayments").addEventListener("click", () => {
+    showExtraPayments = !showExtraPayments;
+    document.body.classList.toggle("show-extra-payments", showExtraPayments);
+    $("toggleExtraPayments").textContent = showExtraPayments
+      ? "− Hide Payments (4–6)"
+      : "＋ More Payments (4–6)";
+    $("toggleExtraPayments").setAttribute("aria-expanded", String(showExtraPayments));
+  });
+
   /*
     Calculated columns have key: null.
     Their positions are retained when pasting from Excel.
@@ -536,6 +561,9 @@
     { key: "received", label: "Payment Received 1" },
     { key: "received2", label: "Payment Received 2" },
     { key: "received3", label: "Payment Received 3" },
+    { key: "received4", label: "Payment Received 4" },
+    { key: "received5", label: "Payment Received 5" },
+    { key: "received6", label: "Payment Received 6" },
     { key: null, label: "Balance" },
     { key: "dueDate", label: "Due Date" },
     { key: "remarks", label: "Remarks" },
@@ -547,7 +575,10 @@
     "qty",
     "received",
     "received2",
-    "received3"
+    "received3",
+    "received4",
+    "received5",
+    "received6"
   ];
 
   const dateKeys = ["billDate", "dueDate"];
@@ -567,6 +598,12 @@
       received2Remark: "",
       received3: "",
       received3Remark: "",
+      received4: "",
+      received4Remark: "",
+      received5: "",
+      received5Remark: "",
+      received6: "",
+      received6Remark: "",
       dueDate: "",
       remarks: "",
       phone: ""
@@ -641,7 +678,10 @@
       total(row) -
       number(row.received) -
       number(row.received2) -
-      number(row.received3)
+      number(row.received3) -
+      number(row.received4) -
+      number(row.received5) -
+      number(row.received6)
     );
   }
 
@@ -717,7 +757,10 @@
       "qty",
       "received",
       "received2",
-      "received3"
+      "received3",
+      "received4",
+      "received5",
+      "received6"
     ].some(key => String(row[key] ?? "").trim() !== "");
 
     if (!hasAmount) return "";
@@ -773,11 +816,14 @@
   function makeInput(rowIndex, columnIndex, row) {
     const column = columns[columnIndex];
 
-    // Payment 1/2/3: amount on top, separate multiline remark below.
+    // Payment 1-6: amount on top, separate multiline remark below.
     const paymentRemarkKeys = {
       received: "receivedRemark",
       received2: "received2Remark",
-      received3: "received3Remark"
+      received3: "received3Remark",
+      received4: "received4Remark",
+      received5: "received5Remark",
+      received6: "received6Remark"
     };
     if (paymentRemarkKeys[column.key]) {
       const wrap = document.createElement("div");
@@ -845,6 +891,9 @@
 
       columns.forEach((column, columnIndex) => {
         const td = document.createElement("td");
+        if (["received4", "received5", "received6"].includes(column.key)) {
+          td.classList.add("optional-payment-column");
+        }
 
         if (column.key) {
           td.appendChild(
@@ -928,6 +977,9 @@
     let payment1 = 0;
     let payment2 = 0;
     let payment3 = 0;
+    let payment4 = 0;
+    let payment5 = 0;
+    let payment6 = 0;
     let due = 0;
 
     let paid = 0;
@@ -947,6 +999,9 @@
       payment1 += number(row.received);
       payment2 += number(row.received2);
       payment3 += number(row.received3);
+      payment4 += number(row.received4);
+      payment5 += number(row.received5);
+      payment6 += number(row.received6);
       due += balance(row);
 
       const rowStatus = status(row);
@@ -965,11 +1020,14 @@
     $("totalPayment1").textContent = money(payment1);
     $("totalPayment2").textContent = money(payment2);
     $("totalPayment3").textContent = money(payment3);
+    $("totalPayment4").textContent = money(payment4);
+    $("totalPayment5").textContent = money(payment5);
+    $("totalPayment6").textContent = money(payment6);
     $("totalBalance").textContent = money(due);
     $("paidCount").textContent = paid;
     $("pendingCount").textContent = `${pending} / ${overdue}`;
 
-    const totalReceived = payment1 + payment2 + payment3;
+    const totalReceived = payment1 + payment2 + payment3 + payment4 + payment5 + payment6;
 
     $("totalLine").textContent =
       `Total Sales: ${money(sales)} | ` +
@@ -1166,6 +1224,9 @@
       `Payment 1: ${row.received || 0}${row.receivedRemark ? " (" + row.receivedRemark + ")" : ""}`,
       `Payment 2: ${row.received2 || 0}${row.received2Remark ? " (" + row.received2Remark + ")" : ""}`,
       `Payment 3: ${row.received3 || 0}${row.received3Remark ? " (" + row.received3Remark + ")" : ""}`,
+      `Payment 4: ${row.received4 || 0}${row.received4Remark ? " (" + row.received4Remark + ")" : ""}`,
+      `Payment 5: ${row.received5 || 0}${row.received5Remark ? " (" + row.received5Remark + ")" : ""}`,
+      `Payment 6: ${row.received6 || 0}${row.received6Remark ? " (" + row.received6Remark + ")" : ""}`,
       `Balance / Due: ${money(balance(row))}`,
       `Due Date: ${displayDate(row.dueDate) || "-"}`,
       `Remarks: ${row.remarks || "-"}`,
@@ -1244,6 +1305,9 @@
     "Payment Received 1",
     "Payment Received 2",
     "Payment Received 3",
+    "Payment Received 4",
+    "Payment Received 5",
+    "Payment Received 6",
     "Balance",
     "Due Date",
     "Remarks",
@@ -1303,6 +1367,9 @@
         number(row.received),
         number(row.received2),
         number(row.received3),
+        number(row.received4),
+        number(row.received5),
+        number(row.received6),
         balance(row),
         row.dueDate,
         row.remarks,
@@ -1479,6 +1546,12 @@
             )
           ).trim(),
           received3Remark: String(get(source, "paymentreceived3remark", "received3remark", "payment3note")).trim(),
+          received4: String(get(source, "paymentreceived4", "received4")).trim(),
+          received4Remark: String(get(source, "paymentreceived4remark", "received4remark", "payment4note")).trim(),
+          received5: String(get(source, "paymentreceived5", "received5")).trim(),
+          received5Remark: String(get(source, "paymentreceived5remark", "received5remark", "payment5note")).trim(),
+          received6: String(get(source, "paymentreceived6", "received6")).trim(),
+          received6Remark: String(get(source, "paymentreceived6remark", "received6remark", "payment6note")).trim(),
 
           dueDate: excelDate(
             get(source, "duedate"),
