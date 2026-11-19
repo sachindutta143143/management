@@ -118,8 +118,6 @@
     .gray {
       background: #64748b;
     }
-    .whatsapp-cell { text-align: center; padding: 2px; }
-    .whatsapp-button { background: #16a34a; padding: 6px 7px; font-size: 10px; white-space: nowrap; }
 
     .upload-button input {
       display: none;
@@ -220,22 +218,6 @@
 
     /* Each payment has its own amount and note field underneath it. */
     td:has(.payment-cell-wrap) { height: auto; min-height: 76px; vertical-align: top; }
-    /* Optional payments are revealed one at a time to keep the register compact. */
-    .optional-payment-column { display: none; }
-    .extra-payment-summary { display: none; }
-    body.show-payment-4 .optional-payment-column[data-payment-level="4"],
-    body.show-payment-5 .optional-payment-column[data-payment-level="4"],
-    body.show-payment-5 .optional-payment-column[data-payment-level="5"],
-    body.show-payment-6 .optional-payment-column[data-payment-level="4"],
-    body.show-payment-6 .optional-payment-column[data-payment-level="5"],
-    body.show-payment-6 .optional-payment-column[data-payment-level="6"] { display: table-cell; }
-    body.show-payment-4 .extra-payment-summary[data-payment-level="4"],
-    body.show-payment-5 .extra-payment-summary[data-payment-level="4"],
-    body.show-payment-5 .extra-payment-summary[data-payment-level="5"],
-    body.show-payment-6 .extra-payment-summary[data-payment-level="4"],
-    body.show-payment-6 .extra-payment-summary[data-payment-level="5"],
-    body.show-payment-6 .extra-payment-summary[data-payment-level="6"] { display: block; }
-    #toggleExtraPayments { white-space: nowrap; }
     .payment-cell-wrap { display: flex; flex-direction: column; min-width: 88px; }
     .payment-cell-wrap .payment-amount { height: 30px; font-weight: 600; }
     .payment-cell-wrap .payment-note {
@@ -395,10 +377,6 @@
       <strong id="totalPayment3">₹0.00</strong>
     </div>
 
-    <div class="card extra-payment-summary" data-payment-level="4"><span>Payment Received 4</span><strong id="totalPayment4">₹0.00</strong></div>
-    <div class="card extra-payment-summary" data-payment-level="5"><span>Payment Received 5</span><strong id="totalPayment5">₹0.00</strong></div>
-    <div class="card extra-payment-summary" data-payment-level="6"><span>Payment Received 6</span><strong id="totalPayment6">₹0.00</strong></div>
-
     <div class="card">
       <span>Total Balance</span>
       <strong id="totalBalance">₹0.00</strong>
@@ -418,7 +396,6 @@
   <!-- Buttons -->
   <div class="toolbar">
     <button type="button" id="editModeToggle" class="green" aria-pressed="true">Edit: ON</button>
-    <button type="button" id="toggleExtraPayments" class="gray" aria-expanded="false">＋ More Payments (4–6)</button>
     <button type="button" id="addRows">+ Add 20 Rows</button>
 
     <label class="upload-button green">
@@ -443,7 +420,7 @@
 
   <p class="help">
     <b>Total = Rate × Qty</b> &nbsp;|&nbsp;
-    <b>Balance = Total − Payment 1 − Payment 2 − Payment 3 − Payment 4 − Payment 5 − Payment 6</b>.
+    <b>Balance = Total − Payment 1 − Payment 2 − Payment 3</b>.
     Blue cells are calculated automatically.
   </p>
 
@@ -468,8 +445,6 @@
         <col style="width:7%">
         <col style="width:8%">
         <col style="width:6%">
-        <col style="width:6%">
-        <col style="width:4%">
         <col style="width:3%">
       </colgroup>
 
@@ -487,14 +462,9 @@
           <th>Payment Received 1</th>
           <th>Payment Received 2</th>
           <th>Payment Received 3</th>
-          <th class="optional-payment-column" data-payment-level="4">Payment Received 4</th>
-          <th class="optional-payment-column" data-payment-level="5">Payment Received 5</th>
-          <th class="optional-payment-column" data-payment-level="6">Payment Received 6</th>
           <th>Balance / Due</th>
           <th>Due Date</th>
           <th>Remarks</th>
-          <th>Phone Number</th>
-          <th>WhatsApp</th>
           <th>Del.</th>
         </tr>
       </thead>
@@ -544,25 +514,6 @@
     applyEditMode();
   });
 
-  // Reveal optional payments sequentially: 4, then 5, then 6.
-  let visiblePaymentLevel = 3;
-  function updateOptionalPaymentView() {
-    ["show-payment-4", "show-payment-5", "show-payment-6"].forEach(cls => document.body.classList.remove(cls));
-    if (visiblePaymentLevel >= 4) document.body.classList.add("show-payment-4");
-    if (visiblePaymentLevel >= 5) document.body.classList.add("show-payment-5");
-    if (visiblePaymentLevel >= 6) document.body.classList.add("show-payment-6");
-    const button = $("toggleExtraPayments");
-    button.textContent = visiblePaymentLevel < 6
-      ? `＋ Add Payment ${visiblePaymentLevel + 1}`
-      : "− Hide Extra Payments";
-    button.setAttribute("aria-expanded", String(visiblePaymentLevel > 3));
-  }
-  $("toggleExtraPayments").addEventListener("click", () => {
-    visiblePaymentLevel = visiblePaymentLevel < 6 ? visiblePaymentLevel + 1 : 3;
-    updateOptionalPaymentView();
-  });
-  updateOptionalPaymentView();
-
   /*
     Calculated columns have key: null.
     Their positions are retained when pasting from Excel.
@@ -579,13 +530,9 @@
     { key: "received", label: "Payment Received 1" },
     { key: "received2", label: "Payment Received 2" },
     { key: "received3", label: "Payment Received 3" },
-    { key: "received4", label: "Payment Received 4" },
-    { key: "received5", label: "Payment Received 5" },
-    { key: "received6", label: "Payment Received 6" },
     { key: null, label: "Balance" },
     { key: "dueDate", label: "Due Date" },
-    { key: "remarks", label: "Remarks" },
-    { key: "phone", label: "Phone Number" }
+    { key: "remarks", label: "Remarks" }
   ];
 
   const numericKeys = [
@@ -593,10 +540,7 @@
     "qty",
     "received",
     "received2",
-    "received3",
-    "received4",
-    "received5",
-    "received6"
+    "received3"
   ];
 
   const dateKeys = ["billDate", "dueDate"];
@@ -616,15 +560,8 @@
       received2Remark: "",
       received3: "",
       received3Remark: "",
-      received4: "",
-      received4Remark: "",
-      received5: "",
-      received5Remark: "",
-      received6: "",
-      received6Remark: "",
       dueDate: "",
-      remarks: "",
-      phone: ""
+      remarks: ""
     };
   }
 
@@ -649,26 +586,29 @@
     rows = Array.from({ length: 20 }, emptyRow);
   }
 
-  // Keep the newest Bill Date at the top; undated/older entries stay below.
-  // Stable sorting preserves the existing order when two bills share a date.
+  // Only completed bills are date-sorted. A row is considered complete
+  // after Bill Date, Customer/Details, Item, Rate and Quantity are entered.
+  // This prevents entering the date first from moving the row away mid-entry.
+  function isReadyToSort(row) {
+    return Boolean(
+      String(row.billDate || '').trim() &&
+      String(row.customer || '').trim() &&
+      String(row.item || '').trim() &&
+      String(row.rate || '').trim() &&
+      String(row.qty || '').trim()
+    );
+  }
+
   function sortRowsByBillDate() {
-    // Keep one permanently blank entry line at the very top. Once a row gets
-    // data/date, it moves into the date-sorted list below; remaining blank rows
-    // stay at the bottom for additional entries.
-    const filled = [];
-    const blank = [];
-    rows.forEach((row, index) => (hasData(row) ? filled : blank).push({ row, index }));
-    filled.sort((a, b) => {
+    rows = rows.map((row, index) => ({ row, index })).sort((a, b) => {
+      const readyA = isReadyToSort(a.row);
+      const readyB = isReadyToSort(b.row);
+      if (readyA !== readyB) return readyA ? -1 : 1;
+      if (!readyA && !readyB) return a.index - b.index;
       const da = parseDate(a.row.billDate) || '';
       const db = parseDate(b.row.billDate) || '';
-      if (!da && !db) return a.index - b.index;
-      if (!da) return 1;
-      if (!db) return -1;
       return db.localeCompare(da) || a.index - b.index;
-    });
-    if (!blank.length) blank.push({ row: emptyRow(), index: rows.length });
-    rows = [blank[0].row, ...filled.map(item => item.row), ...blank.slice(1).map(item => item.row)];
-    while (rows.length < 20) rows.push(emptyRow());
+    }).map(item => item.row);
   }
   sortRowsByBillDate();
 
@@ -705,10 +645,7 @@
       total(row) -
       number(row.received) -
       number(row.received2) -
-      number(row.received3) -
-      number(row.received4) -
-      number(row.received5) -
-      number(row.received6)
+      number(row.received3)
     );
   }
 
@@ -784,10 +721,7 @@
       "qty",
       "received",
       "received2",
-      "received3",
-      "received4",
-      "received5",
-      "received6"
+      "received3"
     ].some(key => String(row[key] ?? "").trim() !== "");
 
     if (!hasAmount) return "";
@@ -810,18 +744,6 @@
   let saveTimer;
   let localWritePending = false;
   let lastSharedSnapshot = "";
-  // Do not rebuild the table while a user is editing; keep the focused cell stable.
-  let lastRegisterInteraction = Date.now();
-  const registerBody = $("tableBody");
-  ["pointerdown", "focusin", "input", "keydown"].forEach(type => {
-    registerBody.addEventListener(type, () => { lastRegisterInteraction = Date.now(); }, true);
-  });
-  function registerIsBeingEdited() {
-    // A cell may remain focused after the user stops typing. Pause sync for
-    // 20 seconds after actual interaction, then allow remote updates even if
-    // the caret is still in that cell.
-    return Date.now() - lastRegisterInteraction < 20000;
-  }
 
   async function saveNow() {
     clearTimeout(saveTimer);
@@ -855,14 +777,11 @@
   function makeInput(rowIndex, columnIndex, row) {
     const column = columns[columnIndex];
 
-    // Payment 1-6: amount on top, separate multiline remark below.
+    // Payment 1/2/3: amount on top, separate multiline remark below.
     const paymentRemarkKeys = {
       received: "receivedRemark",
       received2: "received2Remark",
-      received3: "received3Remark",
-      received4: "received4Remark",
-      received5: "received5Remark",
-      received6: "received6Remark"
+      received3: "received3Remark"
     };
     if (paymentRemarkKeys[column.key]) {
       const wrap = document.createElement("div");
@@ -894,8 +813,7 @@
 
     const input = document.createElement(["item","customer"].includes(column.key) ? "textarea" : "input");
     input.className = "cell" + (column.key === "item" ? " item-cell" : column.key === "customer" ? " customer-cell" : "");
-    if (!["item","customer"].includes(column.key)) input.type = column.key === "phone" ? "tel" : "text";
-    if (column.key === "phone") { input.inputMode = "tel"; input.placeholder = "Mobile number"; }
+    if (!["item","customer"].includes(column.key)) input.type = "text";
     if (column.key === "item") { input.rows = 2; input.placeholder = "Enter item details..."; }
     if (column.key === "customer") { input.rows = 2; input.placeholder = "Customer name / second line..."; }
     input.value = dateKeys.includes(column.key) ? displayDate(row[column.key]) : (row[column.key] ?? "");
@@ -919,27 +837,17 @@
     sortRowsByBillDate();
     const fragment = document.createDocumentFragment();
 
-    let visibleSerial = 0;
     rows.forEach((row, rowIndex) => {
       const tr = document.createElement("tr");
       tr.dataset.row = rowIndex;
 
       const serial = document.createElement("td");
       serial.className = "serial";
-      if (hasData(row)) {
-        visibleSerial += 1;
-        serial.textContent = visibleSerial;
-      } else {
-        serial.textContent = "";
-      }
+      serial.textContent = rowIndex + 1;
       tr.appendChild(serial);
 
       columns.forEach((column, columnIndex) => {
         const td = document.createElement("td");
-        if (["received4", "received5", "received6"].includes(column.key)) {
-          td.classList.add("optional-payment-column");
-          td.dataset.paymentLevel = column.key.slice(-1);
-        }
 
         if (column.key) {
           td.appendChild(
@@ -952,17 +860,6 @@
 
         tr.appendChild(td);
       });
-
-      const whatsappCell = document.createElement("td");
-      whatsappCell.className = "whatsapp-cell";
-      const whatsappButton = document.createElement("button");
-      whatsappButton.type = "button";
-      whatsappButton.className = "whatsapp-button";
-      whatsappButton.textContent = "Share";
-      whatsappButton.dataset.whatsappRow = rowIndex;
-      whatsappButton.setAttribute("aria-label", `Share row ${rowIndex + 1} on WhatsApp`);
-      whatsappCell.appendChild(whatsappButton);
-      tr.appendChild(whatsappCell);
 
       const deleteCell = document.createElement("td");
       deleteCell.className = "delete-cell";
@@ -1023,9 +920,6 @@
     let payment1 = 0;
     let payment2 = 0;
     let payment3 = 0;
-    let payment4 = 0;
-    let payment5 = 0;
-    let payment6 = 0;
     let due = 0;
 
     let paid = 0;
@@ -1045,9 +939,6 @@
       payment1 += number(row.received);
       payment2 += number(row.received2);
       payment3 += number(row.received3);
-      payment4 += number(row.received4);
-      payment5 += number(row.received5);
-      payment6 += number(row.received6);
       due += balance(row);
 
       const rowStatus = status(row);
@@ -1066,14 +957,11 @@
     $("totalPayment1").textContent = money(payment1);
     $("totalPayment2").textContent = money(payment2);
     $("totalPayment3").textContent = money(payment3);
-    $("totalPayment4").textContent = money(payment4);
-    $("totalPayment5").textContent = money(payment5);
-    $("totalPayment6").textContent = money(payment6);
     $("totalBalance").textContent = money(due);
     $("paidCount").textContent = paid;
     $("pendingCount").textContent = `${pending} / ${overdue}`;
 
-    const totalReceived = payment1 + payment2 + payment3 + payment4 + payment5 + payment6;
+    const totalReceived = payment1 + payment2 + payment3;
 
     $("totalLine").textContent =
       `Total Sales: ${money(sales)} | ` +
@@ -1147,12 +1035,20 @@
         input.value = displayDate(date);
         rows[rowIndex][key] = date;
 
-        if (key === "billDate") {
-          sortRowsByBillDate();
-          renderTable();
-        } else {
-          updateDashboard();
-        }
+        updateDashboard();
+        scheduleSave();
+      }
+    }
+
+    // Sort/move the row only after all required entry fields are complete.
+    // The user can enter date first, then details, rate and quantity without
+    // the row jumping away during the entry process.
+    if (["billDate", "customer", "item", "rate", "qty"].includes(key) && isReadyToSort(rows[rowIndex])) {
+      const currentRow = rows[rowIndex];
+      const before = rows.slice();
+      sortRowsByBillDate();
+      if (rows.some((row, index) => row !== before[index])) {
+        renderTable();
         scheduleSave();
       }
     }
@@ -1245,51 +1141,8 @@
       "Cells pasted. Please check dates and amounts. Calculated cells were skipped.";
   });
 
-  function shareCreditRowOnWhatsApp(rowIndex) {
-    const row = rows[rowIndex];
-    if (!row) return;
-    let phone = String(row.phone || "").replace(/\D/g, "");
-    if (!phone) {
-      alert("Please enter the customer's phone number first.");
-      const phoneInput = $("tableBody").querySelector(`input[data-row="${rowIndex}"][data-key="phone"]`);
-      if (phoneInput) phoneInput.focus();
-      return;
-    }
-    // For Indian 10-digit mobile numbers, add country code 91.
-    if (phone.length === 10) phone = "91" + phone;
-    const lines = [
-      "MULTI PLAZA – CREDIT / SUPPLY DETAILS",
-      `Order No.: ${row.orderNo || "-"}`,
-      `Bill No.: ${row.billNo || "-"}`,
-      `Bill Date: ${displayDate(row.billDate) || "-"}`,
-      `Customer: ${row.customer || "-"}`,
-      `Item: ${row.item || "-"}`,
-      `Rate: ${row.rate || "-"}`,
-      `Quantity: ${row.qty || "-"}`,
-      `Total: ${money(total(row))}`,
-      `Payment 1: ${row.received || 0}${row.receivedRemark ? " (" + row.receivedRemark + ")" : ""}`,
-      `Payment 2: ${row.received2 || 0}${row.received2Remark ? " (" + row.received2Remark + ")" : ""}`,
-      `Payment 3: ${row.received3 || 0}${row.received3Remark ? " (" + row.received3Remark + ")" : ""}`,
-      `Payment 4: ${row.received4 || 0}${row.received4Remark ? " (" + row.received4Remark + ")" : ""}`,
-      `Payment 5: ${row.received5 || 0}${row.received5Remark ? " (" + row.received5Remark + ")" : ""}`,
-      `Payment 6: ${row.received6 || 0}${row.received6Remark ? " (" + row.received6Remark + ")" : ""}`,
-      `Balance / Due: ${money(balance(row))}`,
-      `Due Date: ${displayDate(row.dueDate) || "-"}`,
-      `Remarks: ${row.remarks || "-"}`,
-      "",
-      "Multi Plaza"
-    ];
-    const url = `https://wa.me/${phone}?text=${encodeURIComponent(lines.join("\n"))}`;
-    window.open(url, "_blank", "noopener,noreferrer");
-  }
-
-  // WhatsApp sharing works in view mode too; deletion remains edit-mode only.
+  // Delete one row only.
   $("tableBody").addEventListener("click", event => {
-    const shareIndex = event.target.dataset.whatsappRow;
-    if (shareIndex !== undefined) {
-      shareCreditRowOnWhatsApp(Number(shareIndex));
-      return;
-    }
     if (!editMode) return;
     const index = event.target.dataset.deleteRow;
 
@@ -1351,13 +1204,9 @@
     "Payment Received 1",
     "Payment Received 2",
     "Payment Received 3",
-    "Payment Received 4",
-    "Payment Received 5",
-    "Payment Received 6",
     "Balance",
     "Due Date",
-    "Remarks",
-    "Phone Number"
+    "Remarks"
   ];
 
   function downloadWorkbook(data, filename) {
@@ -1413,13 +1262,9 @@
         number(row.received),
         number(row.received2),
         number(row.received3),
-        number(row.received4),
-        number(row.received5),
-        number(row.received6),
         balance(row),
         row.dueDate,
-        row.remarks,
-        row.phone
+        row.remarks
       ]);
 
     downloadWorkbook(data, "others-register.xlsx");
@@ -1592,12 +1437,6 @@
             )
           ).trim(),
           received3Remark: String(get(source, "paymentreceived3remark", "received3remark", "payment3note")).trim(),
-          received4: String(get(source, "paymentreceived4", "received4")).trim(),
-          received4Remark: String(get(source, "paymentreceived4remark", "received4remark", "payment4note")).trim(),
-          received5: String(get(source, "paymentreceived5", "received5")).trim(),
-          received5Remark: String(get(source, "paymentreceived5remark", "received5remark", "payment5note")).trim(),
-          received6: String(get(source, "paymentreceived6", "received6")).trim(),
-          received6Remark: String(get(source, "paymentreceived6remark", "received6remark", "payment6note")).trim(),
 
           dueDate: excelDate(
             get(source, "duedate"),
@@ -1606,8 +1445,7 @@
 
           remarks: String(
             get(source, "remarks", "remark")
-          ).trim(),
-          phone: String(get(source, "phonenumber", "phone", "mobile", "mobilenumber", "contactnumber")).trim()
+          ).trim()
         });
       });
 
@@ -1654,7 +1492,7 @@
       const localHasData = rows.some(hasData);
       if (serverHasData) {
         const snapshot = JSON.stringify(saved);
-        if (initial || (!localWritePending && !registerIsBeingEdited() && snapshot !== lastSharedSnapshot)) {
+        if (initial || (!localWritePending && snapshot !== lastSharedSnapshot)) {
           rows = saved.map(row => ({ ...emptyRow(), ...row }));
           sortRowsByBillDate();
           renderTable();
@@ -1686,52 +1524,11 @@
   loadSharedRegister(true);
   // Keep already-open phones/desktops in sync without overwriting active edits.
   setInterval(() => {
-    if (document.visibilityState === "visible" && !localWritePending && !registerIsBeingEdited()) loadSharedRegister(false);
+    if (document.visibilityState === "visible" && !localWritePending) loadSharedRegister(false);
   }, 4000);
 })();
 </script>
 
-<style>
-#mpSectionRefresh{position:fixed;right:14px;bottom:14px;z-index:99990;border:1px solid #b8c9dc;border-radius:20px;background:#173f65;color:#fff;padding:9px 14px;font:700 12px Arial,sans-serif;box-shadow:0 3px 12px #0003;cursor:pointer}
-#mpSectionRefresh:active{transform:scale(.98)}
-@media print{#mpSectionRefresh{display:none!important}}
-</style>
-<button id="mpSectionRefresh" type="button" title="Refresh this section">↻ Refresh</button>
-<script>
-(function(){
-  const btn=document.getElementById('mpSectionRefresh');
-  if(!btn)return;
-  let lastActivity=Date.now();
-  let nextRefresh=Date.now()+60000;
-  const editable='input,textarea,select,[contenteditable="true"]';
-  const standalone=()=>window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: window-controls-overlay)').matches || navigator.standalone===true;
-  ['pointerdown','keydown','input','change','touchstart'].forEach(type=>document.addEventListener(type,()=>{lastActivity=Date.now();},{capture:true,passive:true}));
-  function safeToReload(){
-    if(document.visibilityState!=='visible')return false;
-    if(Date.now()-lastActivity<20000)return false;
-    const active=document.activeElement;
-    if(active&&active.matches&&active.matches(editable))return false;
-    if(document.querySelector('[aria-modal="true"],.modal.show,.modal[open]'))return false;
-    return true;
-  }
-  function refreshSection(){
-    if(!safeToReload())return false;
-    btn.disabled=true;btn.textContent='Refreshing…';
-    window.location.reload();
-    return true;
-  }
-  btn.addEventListener('click',()=>{
-    // Manual refresh is explicit; browser page reload preserves server-side records.
-    btn.disabled=true;btn.textContent='Refreshing…';window.location.reload();
-  });
-  // Installed desktop app only: refresh at 60-second intervals, but defer while user is active/editing.
-  setInterval(()=>{
-    if(!standalone()||Date.now()<nextRefresh)return;
-    if(refreshSection())nextRefresh=Date.now()+60000;
-    else nextRefresh=Date.now()+5000;
-  },5000);
-})();
-</script>
 </body>
 </html>
 

@@ -1,0 +1,11 @@
+CREDIT / SUPPLY BILL DATE SORT FIX
+
+Rows are no longer moved when only Bill Date is entered.
+A bill row becomes eligible for date sorting only after all of these fields are filled:
+- Bill Date
+- Customer / Details
+- Item / Description
+- Rate / Price
+- Quantity
+
+Once the required fields are complete and the user leaves one of these fields, completed rows are sorted by newest Bill Date first. Incomplete rows retain their relative order below completed rows. Existing database records are not deleted or reset.

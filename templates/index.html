@@ -2,9 +2,6 @@
 <style>*{box-sizing:border-box}body{margin:0;background:#edf3f8;font-family:Arial;color:#172033}.top{background:linear-gradient(115deg,#102f50,#1d5682);color:white;padding:16px;position:sticky;top:0;z-index:3}.top h2{margin:0 0 12px;font-size:19px}.nav{display:flex;gap:7px;flex-wrap:wrap}.nav a{color:white;text-decoration:none;border:1px solid #ffffff55;padding:10px 13px;border-radius:8px;font-weight:bold;font-size:13px}.nav a:hover{background:white;color:#173f65}iframe{display:block;width:100%;height:calc(100vh - 112px);min-height:600px;border:0;background:#f3f6fb}@media(max-width:600px){.top{padding:10px}.top h2{font-size:16px}.nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.nav a{text-align:center;padding:9px 4px;font-size:11px}iframe{height:calc(100dvh - 110px);min-height:520px}}
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .topbar h2{margin:0}
-.mp-header-actions{display:flex;align-items:center;gap:8px}
-.mp-refresh-current{border:1px solid #ffffff88;border-radius:9px;background:#ffffff18;color:#fff;padding:9px 11px;font-weight:700;cursor:pointer;white-space:nowrap}
-.mp-refresh-current:active{transform:scale(.98)}
 .mp-more-wrap{position:relative;flex:0 0 auto}
 .mp-more-btn{width:42px;height:40px;border:1px solid #ffffff88;border-radius:9px;background:#ffffff18;color:#fff;font-size:27px;line-height:1;cursor:pointer}
 .mp-more-menu{display:none;position:absolute;right:0;top:calc(100% + 7px);z-index:50;min-width:230px;max-height:75vh;overflow:auto;background:#fff;border:1px solid #d6e0ea;border-radius:10px;padding:7px;box-shadow:0 12px 32px #07182b55}
@@ -15,16 +12,10 @@
 @media(max-width:600px){.topbar h2{font-size:15px}.mp-more-btn{width:40px;height:38px}.mp-more-menu{position:fixed;top:58px;right:10px;left:auto;min-width:min(280px,calc(100vw - 20px))}}
 </style><script src="/static/offline-sync.js"></script>
 </head>
-<body><header class="top"><div class="topbar"><h2>M/S. MULTI PLAZA — MANAGEMENT</h2><div class="mp-header-actions"><button type="button" id="mpRefreshCurrent" class="mp-refresh-current" title="Refresh current section">↻ Refresh</button><div class="mp-more-wrap"><button type="button" id="mpMoreBtn" class="mp-more-btn" aria-label="Open Multi Plaza menu" aria-expanded="false">⋮</button><div id="mpMoreMenu" class="mp-more-menu"><a href="/product" target="workspace">1. Product &amp; Price List</a><button type="button" id="mpDpPrice">2. Show / Hide DP Price</button><button type="button" id="mpInstallApp">3. Install Multi Plaza App</button><a href="/credit" target="workspace">Credit / Supply Register</a><a href="/installments" target="workspace">Installment Register</a><a href="/others" target="workspace">Others</a><a href="/quotation" target="workspace">Quotation</a><a href="/customers" target="workspace">Customers</a><a href="/backup" target="workspace">Data Backup</a><button type="button" id="mpMenuRefresh">↻ Refresh Current Section</button></div></div></div></div><nav class="nav">
+<body><header class="top"><div class="topbar"><h2>M/S. MULTI PLAZA — MANAGEMENT</h2><div class="mp-more-wrap"><button type="button" id="mpMoreBtn" class="mp-more-btn" aria-label="Open Multi Plaza menu" aria-expanded="false">⋮</button><div id="mpMoreMenu" class="mp-more-menu"><a href="/product" target="workspace">1. Product &amp; Price List</a><button type="button" id="mpDpPrice">2. Show / Hide DP Price</button><button type="button" id="mpInstallApp">3. Install Multi Plaza App</button><a href="/credit" target="workspace">Credit / Supply Register</a><a href="/installments" target="workspace">Installment Register</a><a href="/others" target="workspace">Others</a><a href="/quotation" target="workspace">Quotation</a><a href="/customers" target="workspace">Customers</a><a href="/backup" target="workspace">Data Backup</a></div></div></div><nav class="nav">
 <a href="/product" target="workspace">Product &amp; Price List</a><a href="/credit" target="workspace">Credit / Supply Register</a><a href="/installments" target="workspace">Installment Register</a><a href="/others" target="workspace">Others</a><a href="/quotation" target="workspace">Quotation</a><a href="/customers" target="workspace">Customers</a><a href="/backup" target="workspace">Data Backup</a>
 <!-- Future section: add another navigation link and Flask route. -->
-</nav></header><iframe name="workspace" src="/product" title="Multi Plaza workspace"></iframe><script>
-if("serviceWorker" in navigator){
- window.addEventListener("load",async()=>{
-  try{const reg=await navigator.serviceWorker.register("/sw.js?v=20261119-crossdevice2",{updateViaCache:"none"});await reg.update();}catch(err){console.warn("PWA service worker:",err);}
- });
-}
-</script><button id="mpBackupButton" style="position:fixed;right:14px;bottom:54px;z-index:99998;background:#fff;border:1px solid #9ab0ca;border-radius:22px;padding:9px 13px;color:#173b68;font-weight:700;box-shadow:0 2px 8px #0002" onclick="MultiPlazaDownloadBackup()">⬇ Download All Data</button>
+</nav></header><iframe name="workspace" src="/product" title="Multi Plaza workspace"></iframe><script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(err=>console.warn("PWA service worker:",err)));}</script><button id="mpBackupButton" style="position:fixed;right:14px;bottom:54px;z-index:99998;background:#fff;border:1px solid #9ab0ca;border-radius:22px;padding:9px 13px;color:#173b68;font-weight:700;box-shadow:0 2px 8px #0002" onclick="MultiPlazaDownloadBackup()">⬇ Download All Data</button>
 
 <script>
 (function(){
@@ -47,8 +38,18 @@ if("serviceWorker" in navigator){
       }).catch(()=>alert('Backup download failed. Please check your connection and try again.'));
   }
   window.MultiPlazaDownloadBackup=downloadBackup;
-  // Do not show a blocking full-screen backup reminder automatically.
-  // The fixed 'Download All Data' button remains available for manual backups.
+  function showReminder(){
+    if(!backupDue()||document.getElementById('mpBackupReminder'))return;
+    const wrap=document.createElement('div');wrap.id='mpBackupReminder';
+    wrap.style='position:fixed;inset:0;background:#0008;z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px;font-family:Arial';
+    wrap.innerHTML='<div style="background:#fff;color:#172033;max-width:420px;width:100%;padding:22px;border-radius:12px;box-shadow:0 8px 35px #0005"><h2 style="margin:0 0 9px;color:#174879">Database Backup Reminder</h2><p style="line-height:1.5">It has been 24 hours or more since your last backup. Download a fresh copy of all Multi Plaza data now.</p><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="mpBackupNow" style="background:#1769b2;color:white;border:0;border-radius:6px;padding:10px 14px;font-weight:bold">Download Backup Now</button><button id="mpBackupLater" style="background:#eef2f6;color:#173b5b;border:1px solid #cbd5df;border-radius:6px;padding:10px 14px">Remind Me Later</button></div></div>';
+    document.body.appendChild(wrap);
+    document.getElementById('mpBackupNow').onclick=()=>{wrap.remove();downloadBackup();};
+    document.getElementById('mpBackupLater').onclick=()=>wrap.remove();
+  }
+  window.addEventListener('load',()=>setTimeout(showReminder,1200));
+  // Re-check when the user returns to the browser tab.
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)showReminder();});
 })();
 </script>
 
@@ -81,33 +82,6 @@ if("serviceWorker" in navigator){
    }
   }catch(e){alert('Please refresh the page and try again.');}
  });
- const frame=document.querySelector('iframe[name="workspace"]');
- function refreshCurrentSection(){
-  if(!frame)return;
-  try{
-   const current=frame.contentWindow.location;
-   const path=current.pathname||'/product';
-   const query=current.search||'';
-   frame.src=path+query+(query?'&':'?')+'_mp_refresh='+Date.now();
-  }catch(e){frame.src='/product?_mp_refresh='+Date.now();}
-  menu.classList.remove('open');btn.setAttribute('aria-expanded','false');
- }
- ['mpRefreshCurrent','mpMenuRefresh'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('click',refreshCurrentSection);});
- // Installed desktop app: refresh the open section once per minute, but only
- // after 20 seconds without interaction. This also refreshes modules that do
- // not have their own background polling (for example Product & Price List).
- const standalone=()=>window.matchMedia('(display-mode: standalone)').matches||window.matchMedia('(display-mode: window-controls-overlay)').matches||navigator.standalone===true;
- let lastWorkspaceActivity=Date.now();
- function watchWorkspace(){
-  if(!frame||!frame.contentWindow)return;
-  try{['pointerdown','keydown','input','change','touchstart'].forEach(type=>frame.contentWindow.document.addEventListener(type,()=>{lastWorkspaceActivity=Date.now();},true));}catch(e){}
- }
- if(frame){frame.addEventListener('load',()=>{lastWorkspaceActivity=Date.now();watchWorkspace();});}
- ['pointerdown','keydown','input','change','touchstart'].forEach(type=>document.addEventListener(type,()=>{lastWorkspaceActivity=Date.now();},true));
- setInterval(()=>{
-  if(!standalone()||document.visibilityState!=='visible')return;
-  if(Date.now()-lastWorkspaceActivity>=20000)refreshCurrentSection();
- },60000);
  const install=document.getElementById('mpInstallApp');
  if(install)install.addEventListener('click',async()=>{
   menu.classList.remove('open');btn.setAttribute('aria-expanded','false');
@@ -115,6 +89,7 @@ if("serviceWorker" in navigator){
   if(installPrompt){installPrompt.prompt();const choice=await installPrompt.userChoice;installPrompt=null;if(choice.outcome==='accepted')alert('Installation started.');return;}
   alert('Install from your browser menu: Chrome/Edge ⋮ > Save and share or More tools > Install page as app / Create shortcut. If unavailable, open the website in Chrome or Edge and refresh once.');
  });
+ if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
 })();
 </script>
 </body></html>

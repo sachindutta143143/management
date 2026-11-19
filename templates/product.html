@@ -358,45 +358,4 @@ window.addEventListener('appinstalled',()=>{
  if(b)b.textContent='Multi Plaza Installed';
 });
 </script>
-<style>
-#mpSectionRefresh{position:fixed;right:14px;bottom:14px;z-index:99990;border:1px solid #b8c9dc;border-radius:20px;background:#173f65;color:#fff;padding:9px 14px;font:700 12px Arial,sans-serif;box-shadow:0 3px 12px #0003;cursor:pointer}
-#mpSectionRefresh:active{transform:scale(.98)}
-@media print{#mpSectionRefresh{display:none!important}}
-</style>
-<button id="mpSectionRefresh" type="button" title="Refresh this section">↻ Refresh</button>
-<script>
-(function(){
-  const btn=document.getElementById('mpSectionRefresh');
-  if(!btn)return;
-  let lastActivity=Date.now();
-  let nextRefresh=Date.now()+60000;
-  const editable='input,textarea,select,[contenteditable="true"]';
-  const standalone=()=>window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: window-controls-overlay)').matches || navigator.standalone===true;
-  ['pointerdown','keydown','input','change','touchstart'].forEach(type=>document.addEventListener(type,()=>{lastActivity=Date.now();},{capture:true,passive:true}));
-  function safeToReload(){
-    if(document.visibilityState!=='visible')return false;
-    if(Date.now()-lastActivity<20000)return false;
-    const active=document.activeElement;
-    if(active&&active.matches&&active.matches(editable))return false;
-    if(document.querySelector('[aria-modal="true"],.modal.show,.modal[open]'))return false;
-    return true;
-  }
-  function refreshSection(){
-    if(!safeToReload())return false;
-    btn.disabled=true;btn.textContent='Refreshing…';
-    window.location.reload();
-    return true;
-  }
-  btn.addEventListener('click',()=>{
-    // Manual refresh is explicit; browser page reload preserves server-side records.
-    btn.disabled=true;btn.textContent='Refreshing…';window.location.reload();
-  });
-  // Installed desktop app only: refresh at 60-second intervals, but defer while user is active/editing.
-  setInterval(()=>{
-    if(!standalone()||Date.now()<nextRefresh)return;
-    if(refreshSection())nextRefresh=Date.now()+60000;
-    else nextRefresh=Date.now()+5000;
-  },5000);
-})();
-</script>
 </body></html>
