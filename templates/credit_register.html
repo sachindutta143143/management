@@ -601,26 +601,27 @@
   }
 
   function sortRowsByBillDate() {
-    // Keep exactly one completely blank entry row at the very top at all times.
-    // Partially completed entries stay directly below it; only fully completed
-    // bills (Bill Date + Customer + Item + Rate + Qty) are date-sorted.
-    const firstBlankIndex = rows.findIndex(row => !hasData(row));
-    rows = rows.map((row, index) => ({ row, index })).sort((a, b) => {
-      const blankA = !hasData(a.row);
-      const blankB = !hasData(b.row);
-      const readyA = isReadyToSort(a.row);
-      const readyB = isReadyToSort(b.row);
-
-      if (a.index === firstBlankIndex) return -1;
-      if (b.index === firstBlankIndex) return 1;
-      if (blankA !== blankB) return blankA ? 1 : -1; // spare blank rows at bottom
-      if (blankA && blankB) return a.index - b.index;
-      if (readyA !== readyB) return readyA ? 1 : -1; // incomplete rows before completed bills
-      if (!readyA && !readyB) return a.index - b.index;
-      const da = parseDate(a.row.billDate) || '';
-      const db = parseDate(b.row.billDate) || '';
-      return db.localeCompare(da) || a.index - b.index;
-    }).map(item => item.row);
+    // Stable partitioning avoids an inconsistent sort comparator. Exactly one
+    // blank entry row stays at the top. Draft rows stay in entry order. Only
+    // completed bills (Bill Date + Customer + Item + Rate + Qty) are sorted.
+    const firstBlank = rows.find(row => !hasData(row));
+    const drafts = rows.filter(row => hasData(row) && !isReadyToSort(row));
+    const completed = rows
+      .filter(isReadyToSort)
+      .map((row, index) => ({ row, index }))
+      .sort((a, b) => {
+        const da = parseDate(a.row.billDate) || '';
+        const db = parseDate(b.row.billDate) || '';
+        return db.localeCompare(da) || a.index - b.index;
+      })
+      .map(item => item.row);
+    const spareBlanks = rows.filter(row => !hasData(row) && row !== firstBlank);
+    rows = [
+      ...(firstBlank ? [firstBlank] : []),
+      ...drafts,
+      ...completed,
+      ...spareBlanks
+    ];
   }
   sortRowsByBillDate();
 
@@ -1069,16 +1070,29 @@
       }
     }
 
-    // Sort/move the row only after all required entry fields are complete.
-    // The user can enter date first, then details, rate and quantity without
-    // the row jumping away during the entry process.
+    // Sort only after all required fields are complete. If the user clicked
+    // another cell in the same table, preserve that intended next target across
+    // the row reorder so one click is enough and focus is not lost.
     if (["billDate", "customer", "item", "rate", "qty"].includes(key) && isReadyToSort(rows[rowIndex])) {
-      const currentRow = rows[rowIndex];
       const before = rows.slice();
+      const nextTarget = event.relatedTarget && event.relatedTarget.classList &&
+        event.relatedTarget.classList.contains("cell") &&
+        event.relatedTarget.closest("#tableBody") ? {
+          row: rows[Number(event.relatedTarget.dataset.row)],
+          key: event.relatedTarget.dataset.key
+        } : null;
       sortRowsByBillDate();
       if (rows.some((row, index) => row !== before[index])) {
         renderTable();
         scheduleSave();
+        if (nextTarget && nextTarget.row) {
+          const newRowIndex = rows.indexOf(nextTarget.row);
+          const nextInput = newRowIndex >= 0
+            ? Array.from($("tableBody").querySelectorAll(".cell")).find(el =>
+                Number(el.dataset.row) === newRowIndex && el.dataset.key === nextTarget.key)
+            : null;
+          if (nextInput) nextInput.focus();
+        }
       }
     }
   });
