@@ -649,8 +649,11 @@
   }
 
   function sortRowsByBillDate() {
+    // Always keep a real blank entry row in the data model. Creating a temporary
+    // blank only inside the sorter meant the DOM reorder had no matching table row.
+    if (!rows.some(row => !hasData(row))) rows.push(emptyRow());
     const sourceRows = rows.slice();
-    const firstBlank = sourceRows.find(row => !hasData(row)) || emptyRow();
+    const firstBlank = sourceRows.find(row => !hasData(row));
     const completed = sourceRows
       .map((row, originalIndex) => ({ row, originalIndex, date: parseDate(row.billDate) }))
       .filter(entry => entry.row !== firstBlank && isReadyToSort(entry.row))
@@ -1108,6 +1111,18 @@
 
     updateRowCalculation(rowIndex);
     updateDashboard();
+
+    // As soon as the last required field is entered, sort immediately without
+    // waiting for focusout. Keep a real blank row at the top for the next bill.
+    if (["billDate", "customer", "item", "rate", "qty"].includes(key) && isReadyToSort(rows[rowIndex])) {
+      if (!rows.some(row => !hasData(row))) rows.push(emptyRow());
+      const rowsBeforeInputSort = rows.slice();
+      sortRowsByBillDate();
+      const orderChanged = rows.some((row, index) => row !== rowsBeforeInputSort[index]);
+      if (orderChanged) {
+        queueMicrotask(() => reorderExistingRows(rowsBeforeInputSort));
+      }
+    }
     scheduleSave();
   });
 
@@ -1174,6 +1189,7 @@
       const currentRow = rows[rowIndex];
       const wasReady = isReadyToSort(currentRow);
       if (wasReady) {
+        if (!rows.some(row => !hasData(row))) rows.push(emptyRow());
         const rowsBeforeSort = rows.slice();
         sortRowsByBillDate();
         const changed = rows.some((row, index) => row !== rowsBeforeSort[index]);
