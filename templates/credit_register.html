@@ -220,11 +220,21 @@
 
     /* Each payment has its own amount and note field underneath it. */
     td:has(.payment-cell-wrap) { height: auto; min-height: 76px; vertical-align: top; }
-    /* Payment 4-6 stay hidden until the user requests them. */
+    /* Optional payments are revealed one at a time to keep the register compact. */
     .optional-payment-column { display: none; }
-    body.show-extra-payments .optional-payment-column { display: table-cell; }
     .extra-payment-summary { display: none; }
-    body.show-extra-payments .extra-payment-summary { display: block; }
+    body.show-payment-4 .optional-payment-column[data-payment-level="4"],
+    body.show-payment-5 .optional-payment-column[data-payment-level="4"],
+    body.show-payment-5 .optional-payment-column[data-payment-level="5"],
+    body.show-payment-6 .optional-payment-column[data-payment-level="4"],
+    body.show-payment-6 .optional-payment-column[data-payment-level="5"],
+    body.show-payment-6 .optional-payment-column[data-payment-level="6"] { display: table-cell; }
+    body.show-payment-4 .extra-payment-summary[data-payment-level="4"],
+    body.show-payment-5 .extra-payment-summary[data-payment-level="4"],
+    body.show-payment-5 .extra-payment-summary[data-payment-level="5"],
+    body.show-payment-6 .extra-payment-summary[data-payment-level="4"],
+    body.show-payment-6 .extra-payment-summary[data-payment-level="5"],
+    body.show-payment-6 .extra-payment-summary[data-payment-level="6"] { display: block; }
     #toggleExtraPayments { white-space: nowrap; }
     .payment-cell-wrap { display: flex; flex-direction: column; min-width: 88px; }
     .payment-cell-wrap .payment-amount { height: 30px; font-weight: 600; }
@@ -385,9 +395,9 @@
       <strong id="totalPayment3">₹0.00</strong>
     </div>
 
-    <div class="card extra-payment-summary"><span>Payment Received 4</span><strong id="totalPayment4">₹0.00</strong></div>
-    <div class="card extra-payment-summary"><span>Payment Received 5</span><strong id="totalPayment5">₹0.00</strong></div>
-    <div class="card extra-payment-summary"><span>Payment Received 6</span><strong id="totalPayment6">₹0.00</strong></div>
+    <div class="card extra-payment-summary" data-payment-level="4"><span>Payment Received 4</span><strong id="totalPayment4">₹0.00</strong></div>
+    <div class="card extra-payment-summary" data-payment-level="5"><span>Payment Received 5</span><strong id="totalPayment5">₹0.00</strong></div>
+    <div class="card extra-payment-summary" data-payment-level="6"><span>Payment Received 6</span><strong id="totalPayment6">₹0.00</strong></div>
 
     <div class="card">
       <span>Total Balance</span>
@@ -477,9 +487,9 @@
           <th>Payment Received 1</th>
           <th>Payment Received 2</th>
           <th>Payment Received 3</th>
-          <th class="optional-payment-column">Payment Received 4</th>
-          <th class="optional-payment-column">Payment Received 5</th>
-          <th class="optional-payment-column">Payment Received 6</th>
+          <th class="optional-payment-column" data-payment-level="4">Payment Received 4</th>
+          <th class="optional-payment-column" data-payment-level="5">Payment Received 5</th>
+          <th class="optional-payment-column" data-payment-level="6">Payment Received 6</th>
           <th>Balance / Due</th>
           <th>Due Date</th>
           <th>Remarks</th>
@@ -534,16 +544,24 @@
     applyEditMode();
   });
 
-  // Keep the register compact: reveal Payment 4-6 only on demand.
-  let showExtraPayments = false;
+  // Reveal optional payments sequentially: 4, then 5, then 6.
+  let visiblePaymentLevel = 3;
+  function updateOptionalPaymentView() {
+    ["show-payment-4", "show-payment-5", "show-payment-6"].forEach(cls => document.body.classList.remove(cls));
+    if (visiblePaymentLevel >= 4) document.body.classList.add("show-payment-4");
+    if (visiblePaymentLevel >= 5) document.body.classList.add("show-payment-5");
+    if (visiblePaymentLevel >= 6) document.body.classList.add("show-payment-6");
+    const button = $("toggleExtraPayments");
+    button.textContent = visiblePaymentLevel < 6
+      ? `＋ Add Payment ${visiblePaymentLevel + 1}`
+      : "− Hide Extra Payments";
+    button.setAttribute("aria-expanded", String(visiblePaymentLevel > 3));
+  }
   $("toggleExtraPayments").addEventListener("click", () => {
-    showExtraPayments = !showExtraPayments;
-    document.body.classList.toggle("show-extra-payments", showExtraPayments);
-    $("toggleExtraPayments").textContent = showExtraPayments
-      ? "− Hide Payments (4–6)"
-      : "＋ More Payments (4–6)";
-    $("toggleExtraPayments").setAttribute("aria-expanded", String(showExtraPayments));
+    visiblePaymentLevel = visiblePaymentLevel < 6 ? visiblePaymentLevel + 1 : 3;
+    updateOptionalPaymentView();
   });
+  updateOptionalPaymentView();
 
   /*
     Calculated columns have key: null.
@@ -783,6 +801,18 @@
   let saveTimer;
   let localWritePending = false;
   let lastSharedSnapshot = "";
+  // Do not rebuild the table while a user is editing; keep the focused cell stable.
+  let lastRegisterInteraction = Date.now();
+  const registerBody = $("tableBody");
+  ["pointerdown", "focusin", "input", "keydown"].forEach(type => {
+    registerBody.addEventListener(type, () => { lastRegisterInteraction = Date.now(); }, true);
+  });
+  function registerIsBeingEdited() {
+    const active = document.activeElement;
+    const hasFocusedCell = !!(active && active.classList && active.classList.contains("cell") && registerBody.contains(active));
+    const withinQuietWindow = Date.now() - lastRegisterInteraction < 20000;
+    return hasFocusedCell || withinQuietWindow;
+  }
 
   async function saveNow() {
     clearTimeout(saveTimer);
@@ -893,6 +923,7 @@
         const td = document.createElement("td");
         if (["received4", "received5", "received6"].includes(column.key)) {
           td.classList.add("optional-payment-column");
+          td.dataset.paymentLevel = column.key.slice(-1);
         }
 
         if (column.key) {
@@ -1608,7 +1639,7 @@
       const localHasData = rows.some(hasData);
       if (serverHasData) {
         const snapshot = JSON.stringify(saved);
-        if (initial || (!localWritePending && snapshot !== lastSharedSnapshot)) {
+        if (initial || (!localWritePending && !registerIsBeingEdited() && snapshot !== lastSharedSnapshot)) {
           rows = saved.map(row => ({ ...emptyRow(), ...row }));
           sortRowsByBillDate();
           renderTable();
@@ -1640,7 +1671,7 @@
   loadSharedRegister(true);
   // Keep already-open phones/desktops in sync without overwriting active edits.
   setInterval(() => {
-    if (document.visibilityState === "visible" && !localWritePending) loadSharedRegister(false);
+    if (document.visibilityState === "visible" && !localWritePending && !registerIsBeingEdited()) loadSharedRegister(false);
   }, 4000);
 })();
 </script>
