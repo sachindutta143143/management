@@ -657,6 +657,14 @@
     const spareBlanks = rows.filter(row => !hasData(row) && row !== firstBlank);
     rows = [firstBlank, ...completed, ...drafts, ...spareBlanks];
   }
+
+  // Track user activity so background sync never steals a click or input focus.
+  let lastUserActivity = Date.now();
+  const markUserActivity = () => { lastUserActivity = Date.now(); };
+  ["pointerdown", "keydown", "input", "change", "focusin"].forEach(type =>
+    document.addEventListener(type, markUserActivity, true)
+  );
+
   sortRowsByBillDate();
 
   function number(value) {
@@ -1131,10 +1139,30 @@
 
         updateDashboard();
         if (["billDate", "customer", "item", "rate", "qty"].includes(key) && isReadyToSort(rows[rowIndex])) {
-          const beforeOrder = rows.slice();
+          const rowsBeforeSort = rows.slice();
           sortRowsByBillDate();
-          const changed = rows.some((row, index) => row !== beforeOrder[index]);
-          if (changed) renderTable();
+          const changed = rows.some((row, index) => row !== rowsBeforeSort[index]);
+          if (changed) {
+            // Move existing row elements only; preserve the active click/focus target.
+            const body = $("tableBody");
+            const existing = new Map();
+            [...body.querySelectorAll(":scope > tr")].forEach(tr => {
+              const oldIndex = Number(tr.dataset.row);
+              if (Number.isInteger(oldIndex) && rowsBeforeSort[oldIndex]) existing.set(rowsBeforeSort[oldIndex], tr);
+            });
+            const fragment = document.createDocumentFragment();
+            rows.forEach((row, newIndex) => {
+              const tr = existing.get(row);
+              if (!tr) return;
+              tr.dataset.row = newIndex;
+              tr.querySelectorAll("[data-row]").forEach(el => { el.dataset.row = newIndex; });
+              const serial = tr.querySelector("td.serial");
+              if (serial) serial.textContent = hasData(row) ? String(newIndex) : "";
+              fragment.appendChild(tr);
+            });
+            body.appendChild(fragment);
+            updateAllCalculations();
+          }
         }
         scheduleSave();
       }
@@ -1637,7 +1665,9 @@
       const localHasData = rows.some(hasData);
       if (serverHasData) {
         const snapshot = JSON.stringify(saved);
-        if (initial || (!localWritePending && snapshot !== lastSharedSnapshot)) {
+        const activeInRegister = $("tableBody").contains(document.activeElement);
+        const userIsBusy = activeInRegister || (Date.now() - lastUserActivity < 20000);
+        if (initial || (!userIsBusy && !localWritePending && snapshot !== lastSharedSnapshot)) {
           rows = saved.map(row => ({ ...emptyRow(), ...row }));
           sortRowsByBillDate();
           renderTable();
