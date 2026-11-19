@@ -1111,10 +1111,36 @@
     scheduleSave();
   });
 
+  // Reorder existing TR nodes instead of rebuilding the table. This keeps
+  // the user's click target and inputs alive while a completed bill is sorted.
+  function reorderExistingRows(previousRows) {
+    const body = $("tableBody");
+    const existing = new Map();
+    [...body.querySelectorAll(":scope > tr")].forEach(tr => {
+      const oldIndex = Number(tr.dataset.row);
+      const rowObject = previousRows[oldIndex];
+      if (rowObject) existing.set(rowObject, tr);
+    });
+    const fragment = document.createDocumentFragment();
+    rows.forEach((row, newIndex) => {
+      const tr = existing.get(row);
+      if (!tr) return;
+      tr.dataset.row = newIndex;
+      tr.querySelectorAll("[data-row]").forEach(el => { el.dataset.row = newIndex; });
+      const serial = tr.querySelector("td.serial");
+      if (serial) {
+        const completedIndex = rows.slice(0, newIndex + 1).filter(isReadyToSort).length;
+        serial.textContent = isReadyToSort(row) ? String(completedIndex) : "";
+      }
+      fragment.appendChild(tr);
+    });
+    body.appendChild(fragment);
+    updateAllCalculations();
+  }
+
   $("tableBody").addEventListener("focusout", event => {
     if (!editMode) return;
     const input = event.target;
-
     if (!input.classList.contains("cell")) return;
 
     const rowIndex = Number(input.dataset.row);
@@ -1123,58 +1149,44 @@
 
     if (numericKeys.includes(key)) {
       const valid = validNumber(value);
-
       input.classList.toggle("invalid", !valid);
-
       if (!valid) {
-        $("message").textContent =
-          `Row ${rowIndex + 1}: enter a valid non-negative number.`;
+        $("message").textContent = `Row ${rowIndex + 1}: enter a valid non-negative number.`;
       }
     }
 
+    // Normalize dates only when the date field loses focus.
     if (dateKeys.includes(key) && value) {
       const date = parseDate(value);
-
       if (!date) {
         input.classList.add("invalid");
+        $("message").textContent = `Row ${rowIndex + 1}: use DD-MM-YYYY for dates.`;
+        return;
+      }
+      input.classList.remove("invalid");
+      input.value = displayDate(date);
+      rows[rowIndex][key] = displayDate(date);
+    }
 
-        $("message").textContent =
-          `Row ${rowIndex + 1}: use DD-MM-YYYY for dates.`;
-      } else {
-        input.classList.remove("invalid");
-        input.value = displayDate(date);
-        rows[rowIndex][key] = date;
-
-        updateDashboard();
-        if (["billDate", "customer", "item", "rate", "qty"].includes(key) && isReadyToSort(rows[rowIndex])) {
-          const rowsBeforeSort = rows.slice();
-          sortRowsByBillDate();
-          const changed = rows.some((row, index) => row !== rowsBeforeSort[index]);
-          if (changed) {
-            // Move existing row elements only; preserve the active click/focus target.
-            const body = $("tableBody");
-            const existing = new Map();
-            [...body.querySelectorAll(":scope > tr")].forEach(tr => {
-              const oldIndex = Number(tr.dataset.row);
-              if (Number.isInteger(oldIndex) && rowsBeforeSort[oldIndex]) existing.set(rowsBeforeSort[oldIndex], tr);
-            });
-            const fragment = document.createDocumentFragment();
-            rows.forEach((row, newIndex) => {
-              const tr = existing.get(row);
-              if (!tr) return;
-              tr.dataset.row = newIndex;
-              tr.querySelectorAll("[data-row]").forEach(el => { el.dataset.row = newIndex; });
-              const serial = tr.querySelector("td.serial");
-              if (serial) serial.textContent = hasData(row) ? String(newIndex) : "";
-              fragment.appendChild(tr);
-            });
-            body.appendChild(fragment);
-            updateAllCalculations();
-          }
+    // Sorting must be triggered when ANY required field is completed,
+    // not just when Bill Date loses focus. Equal dates are valid separate bills.
+    if (["billDate", "customer", "item", "rate", "qty"].includes(key)) {
+      const currentRow = rows[rowIndex];
+      const wasReady = isReadyToSort(currentRow);
+      if (wasReady) {
+        const rowsBeforeSort = rows.slice();
+        sortRowsByBillDate();
+        const changed = rows.some((row, index) => row !== rowsBeforeSort[index]);
+        if (changed) {
+          // Let the browser finish the click/focus transition first, then move
+          // the existing row elements. No table re-render and no duplicate-date rejection.
+          setTimeout(() => reorderExistingRows(rowsBeforeSort), 0);
         }
-        scheduleSave();
       }
     }
+
+    updateDashboard();
+    scheduleSave();
   });
 
   // Enter moves to the same column in the next row.
